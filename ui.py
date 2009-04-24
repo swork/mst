@@ -89,8 +89,8 @@ class MatchupTable(wx.grid.PyGridTableBase):
             attr = wx.grid.GridCellAttr()
             attr.SetBackgroundColour("light gray")
             return attr
-        if (not self.data[row]['impulseid'] is None and
-            not self.data[row]['scanid'] is None):
+        if (not None is self.data[row]['impulseid'] and
+            not None is self.data[row]['scanid']):
             attr = wx.grid.GridCellAttr()
             attr.SetBackgroundColour("pale green")
             return attr
