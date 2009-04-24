@@ -3,16 +3,30 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, relation, backref, join
 
+trace = False
+
 Base = declarative_base()
 
 class Db:
     """Hold the database session info.  Only one instance possible?"""
-        
+
+    # Special "bib" numbers
+    FLAG_CORRAL_EMPTY = 999
+    FLAG_ERROR = 998
+
+    def IsFlagValue(self, bibnumber): # s.b. class-static member fn
+        if bibnumber is None:
+            return False
+        if (bibnumber == Db.FLAG_CORRAL_EMPTY
+            or bibnumber == Db.FLAG_ERROR):
+            return True
+        return False
+
     def __init__(self, dbstring, echo):
-        engine = create_engine(dbstring, echo=echo)
-        Session = sessionmaker(bind=engine)
+        self.engine = create_engine(dbstring, echo=echo)
+        Session = sessionmaker(bind=self.engine)
         self.session = Session()
-        Base.metadata.create_all(engine)
+        Base.metadata.create_all(self.engine)
 
     class Entry(Base):
         """Registration info for an entrant"""
@@ -35,16 +49,12 @@ class Db:
 
         id = Column(Integer, primary_key=True)
         impulsetime = Column(String)
-        bib = Column(Integer, ForeignKey("entries.bib"))
-
-        entry_bib = relation("Entry", backref=backref('impulses', order_by=bib))
 
         def __init__(self, impulsetime):
             self.impulsetime = impulsetime
-            self.bib = None
 
         def __repr__(self):
-            return "<Db.Impulse('%s', %s)>" % (self.impulsetime, repr(self.bib))
+            return "<Db.Impulse('%s')>" % (self.impulsetime)
 
     class Scan(Base):
         """Bib number and time scanned as finisher leaves the finish corral"""
@@ -53,8 +63,11 @@ class Db:
         id = Column(Integer, primary_key=True)
         scantime = Column(String)
         bib = Column(Integer, ForeignKey("entries.bib"))
+        impulse = Column(Integer, ForeignKey("impulses.id"))
 
         entry_bib = relation("Entry", backref=backref('scans', order_by=bib))
+        impulse_id = relation("Impulse",
+                              backref=backref('impulses', order_by=id))
 
         def __init__(self, scantime, bib):
             self.scantime = scantime
@@ -63,7 +76,7 @@ class Db:
         def __repr__(self):
             return "<Db.Scan('%s',%d)>" % (self.scantime, self.bib)
 
-    def BusyTimesList(self, trace=False):
+    def BusyTimesList(self):
         """Find time periods when finish corral contains more than one rider
         with finishes not yet assigned.  Each ends only when the
         corral is marked empty.  Does a rollback() so flush first."""
@@ -108,7 +121,7 @@ class Db:
                       if si != -1 else False)):
                 if scan.bib > 0:
                     corral_counter -= 1
-                elif scan.bib == -1:
+                elif scan.bib == Db.EMPTY_CORRAL:
                     # check for subsequent error, then...
                     corral_counter = 0
                     if start_busy != '':
@@ -124,39 +137,141 @@ class Db:
         return results
             
 #    def OutOfSyncTimesList(self):
-        
+
+    def LoadTestData(self):
+        self.session.add_all([
+                Db.Entry(101, "Albert"),
+                Db.Entry(102, "Bob"),
+                Db.Entry(103, "Clyde"),
+                Db.Entry(104, "Dale"),
+                Db.Entry(105, "Ernie"),
+                Db.Impulse("12:02:10.02"),
+                Db.Impulse("12:03:33.01"),
+                Db.Impulse("12:03:33.03"),
+                Db.Impulse("12:14:44.04"),
+                Db.Scan("12:02:22.00", 102),
+                Db.Scan("12:02:25.00", Db.FLAG_CORRAL_EMPTY),
+                Db.Scan("12:04:01.00", 104),
+                Db.Scan("12:04:10.00", 101),
+                Db.Scan("12:04:15.00", Db.FLAG_CORRAL_EMPTY),
+                Db.Scan("12:14:59.00", 105),
+                Db.Scan("12:15:03.00", Db.FLAG_CORRAL_EMPTY),
+                ])
+
+    def GetMatchTable(self):
+        impulses = self.engine.execute("select impulses.impulsetime, scans.bib, scans.scantime, impulses.id, scans.id, scans.impulse from impulses left outer join scans on scans.impulse = impulses.id order by impulsetime")
+        other_scans = self.engine.execute("select scans.scantime, scans.bib, scans.id from scans where scans.impulse is null order by scantime")
+
+        impulses_results = impulses.fetchall()
+        other_scans_results = other_scans.fetchall()
+
+        impulseresults_iterator = enumerate(impulses_results)
+        otherscanresults_iterator = enumerate(other_scans_results)
+
+        impulse_count = 0
+        bibscan_count = 0
+        unmatchedscan_count = 0
+
+        try:
+            ii, impulseresult = impulseresults_iterator.next()
+            impulse_count += 1
+            assert not self.IsFlagValue(impulseresult[1])
+            if not None is impulseresult[1]:
+                bibscan_count += 1
+                if trace: print "0 bump bibscan for %s" % repr(impulseresult[1])
+        except StopIteration:
+            ii = -1
+
+        try: 
+            si, otherscanresult = otherscanresults_iterator.next()
+            if not self.IsFlagValue(otherscanresult[1]):
+                bibscan_count += 1
+                unmatchedscan_count += 1
+                if trace:
+                    print "0 bump bibscan, unmatched for %d" %\
+                        otherscanresult[1]
+        except StopIteration:
+            si = -1
+
+        # result items are (impulsetime or NULL, bib or NULL, scantime or NULL, impulseid or NULL, scanid or NULL)
+        result = []
+        while si != -1 or ii != -1:
+            if (si == -1
+                or (impulseresult[0] <= otherscanresult[0]
+                    if ii != -1 else False)):
+                result.append({"impulsetime" : impulseresult[0],
+                               "bib"         : impulseresult[1],
+                               "scantime"    : impulseresult[2],
+                               "impulseid"   : impulseresult[3],
+                               "scanid"      : impulseresult[4]})
+                try:
+                    ii, impulseresult = impulseresults_iterator.next()
+                    impulse_count += 1
+                    if self.IsFlagValue(impulseresult[1]):
+                        inconsistent()
+                    elif not None is impulseresult[1]:
+                        if trace: print "bump bibscan for %d" % impulseresult[1]
+                        bibscan_count += 1
+                except StopIteration: 
+                    ii = -1
+            elif (ii == -1
+                  or (impulseresult[0] > otherscanresult[0]
+                      if si != -1 else False)):
+                result.append({"impulsetime" : None,
+                               "bib"         : otherscanresult[1],
+                               "scantime"    : otherscanresult[0],
+                               "impulseid"   : None,
+                               "scanid"      : otherscanresult[2]})
+                try:
+                    si, otherscanresult = otherscanresults_iterator.next()
+                    if not self.IsFlagValue(otherscanresult[1]):
+                        if trace: print "bump bibscan, umnatched for %d" %\
+                                otherscanresult[1]
+                        bibscan_count += 1
+                        unmatchedscan_count += 1
+                except StopIteration:
+                    si = -1
+        return (result, impulse_count, bibscan_count, unmatchedscan_count)
+
+    def AssignImpulseToScanByIDs(self, tableresults, impulserow, scanrow):
+        """tableresults is result from GetMatchTable above.  Glue a scan
+        to an impulse in the database and adjust tableresults to match."""
+        impulseid = tableresults[impulserow]['impulseid']
+        scanid = tableresults[scanrow]['scanid']
+        set = { 'impulse': impulseid }
+        self.session.query(Db.Scan).filter("id = %s" % scanid).update(set)
+        tableresults[impulserow]['bib'] = tableresults[scanrow]['bib']
+        tableresults[impulserow]['scantime'] = tableresults[scanrow]['scantime']
+        tableresults[impulserow]['scanid'] = scanid
+        tableresults.pop(scanrow)
+        if trace: print "Popped row %d, %d left" % (scanrow, len(tableresults))
+
+    def Save(self):
+        db.session.commit()
+
+    def IsUnsaved(self):
+        db.session.dirty()
 
 if __name__ == "__main__":
 
+    def msg(m):
+        verbose=True
+        if verbose:
+            print m
+        else:
+            print '.',
+
     db = Db('sqlite:///:memory:', echo=False)
 
-    db.session.add_all([
-        Db.Entry(101, "Albert"),
-        Db.Entry(102, "Bob"),
-        Db.Entry(103, "Clyde"),
-        Db.Entry(104, "Dale"),
-        Db.Entry(105, "Ernie"),
-        Db.Impulse("12:02:10.02"),
-        Db.Impulse("12:03:33.01"),
-        Db.Impulse("12:03:33.03"),
-        Db.Impulse("12:14:44.04"),
-        Db.Scan("12:02:22.00", 102),
-        Db.Scan("12:02:25.00", -1), # scanned card: "Finish corral empty"
-        Db.Scan("12:04:01.00", 104),
-        Db.Scan("12:04:10.00", 101),
-        Db.Scan("12:04:15.00", -1),
-        Db.Scan("12:14:59.00", 105),
-        Db.Scan("12:15:03.00", -1),
-        ])
-
+    db.LoadTestData()
     db.session.commit()
 
     t = db.session.query(Db.Scan).\
         join(Db.Entry).\
         filter(Db.Entry.firstname == 'Dale').\
         first().scantime
-    print "Dale's scan time: '%s' should be 12:04:01.00" % t
     assert t == "12:04:01.00"
+    msg("Dale's scan time: '%s' should be 12:04:01.00" % t)
 
     # Pretend we're assigning finish impulses to riders by hand.
     # Clyde didn't finish.  Notice Albert and Dale were scanned out of
@@ -180,13 +295,13 @@ if __name__ == "__main__":
         order_by(Db.Impulse.impulsetime).\
         all()
 
-    print "Finish Report:"
+    msg("Finish Report:")
     for i in range(0,len(results)):
-        print "%3d: %3d %8.8s %-20s" % (i+1,
+        msg("%3d: %3d %8.8s %-20s" % (i+1,
                                         results[i][0].bib,
                                         results[i][0].impulsetime, 
-                                        results[i][1].firstname)
+                                        results[i][1].firstname))
 
-    print "Compare with observed finishes: %s" % repr(observed_finishes)
+    msg("Compare with observed finishes: %s" % repr(observed_finishes))
 
-    print "Busy Times List: %s" % db.BusyTimesList(True)
+    msg("Busy Times List: %s" % db.BusyTimesList(True))
