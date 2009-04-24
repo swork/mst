@@ -15,11 +15,11 @@ class MatchupTable(wx.grid.PyGridTableBase):
         wx.grid.PyGridTableBase.__init__(self)
         self.gridRef = weakref.ref(grid)
         self.db = db
-        (self.data,
-         self.impulseCount, 
-         self.bibscanCount,
-         self.bibscanUnmatchedCount) = db.GetMatchTable()
-        self.currentRows = self.GetNumberRows()
+        self.data = []
+        self.impulseCount = 0
+        self.bibscanCount = 0
+        self.bibscanUnmatchedCount = 0
+        self.currentRows = 0
         self.colLabels = [
                           'ImpulseTime',
                           'Bib',
@@ -29,6 +29,14 @@ class MatchupTable(wx.grid.PyGridTableBase):
                           wx.grid.GRID_VALUE_NUMBER,
                           wx.grid.GRID_VALUE_STRING,
                           ]
+
+    def Reload(self):
+        if trace: print "Reload..."
+        (self.data,
+         self.impulseCount, 
+         self.bibscanCount,
+         self.bibscanUnmatchedCount) = self.db.GetMatchTable()
+        self.ResetView()
 
     def GetGrid(self):
         return self.gridRef()
@@ -44,28 +52,19 @@ class MatchupTable(wx.grid.PyGridTableBase):
     def ResetView(self):
         """Trim/extend the control's rows and update all values"""
         self.GetGrid().BeginBatch()
-        for current, new, delmsg, addmsg in [
-            (self.currentRows, self.GetNumberRows(), wx.grid.GRIDTABLE_NOTIFY_ROWS_DELETED, wx.grid.GRIDTABLE_NOTIFY_ROWS_APPENDED),
-#            (self.currentColumns, self.GetNumberCols(), wx.grid.GRIDTABLE_NOTIFY_COLS_DELETED, wx.grid.GRIDTABLE_NOTIFY_COLS_APPENDED),
-            ]:
-            if new < current:
-                if trace: print "msg Del: current %d, new %d" % (current, new)
-                msg = wx.grid.GridTableMessage(
-                    self,
-                    delmsg,
-                    new,    # position
-                    current-new,
-                    )
-                self.GetGrid().ProcessTableMessage(msg)
-                self.currentRows = new
-            elif new > current:
-                msg = wx.grid.GridTableMessage(
-                    self,
-                    addmsg,
-                    new-current
-                    )
-                self.GetGrid().ProcessTableMessage(msg)
-                self.currentCols = new
+        
+        if len(self.data) < self.currentRows:
+            msg = wx.grid.GridTableMessage(self,
+                                         wx.grid.GRIDTABLE_NOTIFY_ROWS_DELETED,
+                                           0, # len(self.data),
+                                           self.currentRows - len(self.data))
+            self.GetGrid().ProcessTableMessage(msg)
+        elif len(self.data) > self.currentRows:
+            msg = wx.grid.GridTableMessage(self,
+                                         wx.grid.GRIDTABLE_NOTIFY_ROWS_APPENDED,
+                                           len(self.data) - self.currentRows)
+            self.GetGrid().ProcessTableMessage(msg)
+        self.currentRows = len(self.data)
         self.UpdateValues()
         self.GetGrid().UpdateStatusBar()
         self.GetGrid().EndBatch()
@@ -85,6 +84,7 @@ class MatchupTable(wx.grid.PyGridTableBase):
         self.GetGrid().ProcessTableMessage(msg)
 
     def GetAttr(self, row, col, huh):
+        if trace: print "GetAttr(self, row=%d, col=%d, huh=%s); rows=%d" % (row, col, repr(huh), len(self.data))
         if self.data[row]['bib'] == Db.FLAG_CORRAL_EMPTY:
             attr = wx.grid.GridCellAttr()
             attr.SetBackgroundColour("light gray")
@@ -105,7 +105,7 @@ class MatchupTable(wx.grid.PyGridTableBase):
 
     def AssociateScanWithImpulseByRows(self, top, bot):
         """Mark a finish impulse as belonging to a particular bib."""
-        assert not None is self.data[bot]['scanid']
+        if trace: print "ASWIR(top=%d, bot=%d): tbib=%s, bbib=%s" % (top, bot, self.data[top]['bib'], self.data[bot]['bib'])
         if self.data[top]['impulsetime'] is None:
             alert()
             if not None is self.data[top]['impulseid']:
@@ -151,11 +151,13 @@ class MatchupGrid(wx.grid.Grid):
         wx.grid.EVT_GRID_RANGE_SELECT(self, self.OnRangeSelect)
 
     def OnRangeSelect(self, evt):
+        if trace: print "ORS"
         if evt.Selecting():
             top = evt.GetTopRow()
             bot = evt.GetBottomRow()
             if trace: print "OnRangeSelect: top %d, bottom %d" % (top, bot)
             self.GetTable().AssociateScanWithImpulseByRows(top, bot)
+            self.ClearSelection()
 
     def UpdateStatusBar(self):
         self.parent.UpdateStatusBar()
@@ -164,8 +166,10 @@ class MatchupGrid(wx.grid.Grid):
         return self.GetTable().GetStatusBarText()
 
 class MainFrame(wx.Frame):
+    ID_EASY = 43
     def __init__(self, parent, id, title, db):
         wx.Frame.__init__(self, parent, id, title, size=(300,600))
+        self.db = db
         self.control = MatchupGrid(self, 2, db)
 
         self.CreateStatusBar()
@@ -178,6 +182,9 @@ class MainFrame(wx.Frame):
         editMenu = wx.Menu()
         editMenu.Append(wx.ID_UNDO, "&Undo\tCtrl-Z", "Not yet implemented")
         editMenu.Append(wx.ID_REDO, "Redo\tShift-Ctrl-Z", "Not yet implemented")
+        editMenu.AppendSeparator()
+        editMenu.Append(MainFrame.ID_EASY, "Make Easy Assignments",
+                        "Assign finishes to obviously corresponding scans")
 
         helpMenu = wx.Menu()
         helpMenu.Append(wx.ID_ABOUT, "&About")
@@ -191,6 +198,9 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
         self.Bind(wx.EVT_MENU, self.OnSave, id=wx.ID_SAVE)
         self.Bind(wx.EVT_MENU, self.OnQuit, id=wx.ID_EXIT)
+        self.Bind(wx.EVT_MENU, self.OnMakeEasyAssignments, id=MainFrame.ID_EASY)
+
+        self.control.GetTable().Reload()
 
         self.Show(True)
 
@@ -216,6 +226,14 @@ class MainFrame(wx.Frame):
             print dlg.ShowModal()
             dlg.Destroy()
         self.Close(True)
+
+    def OnMakeEasyAssignments(self, evt):
+        assigned_count = self.db.AssignObvious(self.control.GetTable().data)
+        self.control.GetTable().Reload()
+        dlg = wx.MessageDialog(self, "Did %d assignments." % assigned_count,
+                               "Make Easy Assignments", wx.OK)
+        dlg.ShowModal()
+        dlg.Destroy()
 
     def UpdateStatusBar(self):
         self.SetStatusText(self.control.GetStatusBarText())
