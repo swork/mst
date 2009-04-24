@@ -1,0 +1,13 @@
+#! /usr/local/bin/python
+
+import ui
+import wx
+from db import Db
+
+db = Db('sqlite:///:memory:', echo=False)
+db.LoadTestData()
+db.session.commit()
+
+app = ui.MSTEditorApp()
+frame = ui.MainFrame(None, wx.ID_ANY, 'Editor', db)
+app.MainLoop()
