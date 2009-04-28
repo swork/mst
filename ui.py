@@ -4,8 +4,9 @@ import wx
 import wx.grid
 from db import Db
 import weakref
+import re
 
-trace = False
+trace = True
 
 def alert():
     wx.Sound.PlaySound("alert.wav", wx.SOUND_ASYNC)
@@ -29,6 +30,7 @@ class MatchupTable(wx.grid.PyGridTableBase):
                           wx.grid.GRID_VALUE_NUMBER,
                           wx.grid.GRID_VALUE_STRING,
                           ]
+        self.timere = re.compile("\d\d:\d\d:\d\d.\d+")
 
     def Reload(self):
         if trace: print "Reload..."
@@ -84,10 +86,14 @@ class MatchupTable(wx.grid.PyGridTableBase):
         self.GetGrid().ProcessTableMessage(msg)
 
     def GetAttr(self, row, col, huh):
-        if trace: print "GetAttr(self, row=%d, col=%d, huh=%s); rows=%d" % (row, col, repr(huh), len(self.data))
+#        if trace: print "GetAttr(self, row=%d, col=%d, huh=%s); rows=%d" % (row, col, repr(huh), len(self.data))
         if self.data[row]['bib'] == Db.FLAG_CORRAL_EMPTY:
             attr = wx.grid.GridCellAttr()
             attr.SetBackgroundColour("light gray")
+            return attr
+        if self.data[row]['bib'] == Db.FLAG_ERROR:
+            attr = wx.grid.GridCellAttr()
+            attr.SetBackgroundColour("yellow")
             return attr
         if (not None is self.data[row]['impulseid'] and
             not None is self.data[row]['scanid']):
@@ -132,9 +138,25 @@ class MatchupTable(wx.grid.PyGridTableBase):
             self.ResetView()
 
     def GetStatusBarText(self):
-        return "%d impulses, %d bibs, %d unassigned" % (self.impulseCount,
+        return "%d impulses, %d bib scans, %d unassigned" % (self.impulseCount,
                                                     self.bibscanCount,
                                                     self.bibscanUnmatchedCount)
+
+    def SaveNewValue(self, row, col, str):
+        """Validate and save value; return value or None on failure."""
+        if (col == 0):
+            print "ImpulseTime, %d,%d (%s)" % (row, col, str)
+            if not None is self.data[row]['scanid']:
+                alert()
+            elif self.timere.match(str):
+                return self.SetCellValue(row, col, str)
+        elif (col == 1):
+            print "Bib"
+        elif (col == 2):
+            print "ScanTime"
+        else:
+            print "Huh?"
+        return None
 
 class MatchupGrid(wx.grid.Grid):
     def __init__(self, parent, log, db):
@@ -147,8 +169,9 @@ class MatchupGrid(wx.grid.Grid):
         self.SetMargins(0,0)
         self.AutoSizeColumns(False)
 
-        # Cheesy way to associate bib scan with impulse: drag a range of rows
         wx.grid.EVT_GRID_RANGE_SELECT(self, self.OnRangeSelect)
+        wx.grid.EVT_GRID_CELL_CHANGE(self, self.OnGridCellChange)
+
 
     def OnRangeSelect(self, evt):
         if trace: print "ORS"
@@ -164,6 +187,14 @@ class MatchupGrid(wx.grid.Grid):
 
     def GetStatusBarText(self):
         return self.GetTable().GetStatusBarText()
+
+    def OnGridCellChange(self, evt):
+        if trace: print("OnGridCellChange: (%d,%d)\n" %
+                        (evt.GetRow(), evt.GetCol()))
+        if self.GetTable().SaveNewValue(evt.GetRow(), evt.GetCol(),
+                                        evt.GetString()) is None:
+            alert()
+        pass
 
 class MainFrame(wx.Frame):
     ID_EASY = 43
@@ -198,9 +229,6 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
         self.Bind(wx.EVT_MENU, self.OnSave, id=wx.ID_SAVE)
         self.Bind(wx.EVT_MENU, self.OnQuit, id=wx.ID_EXIT)
-        self.Bind(wx.EVT_MENU, self.OnMakeEasyAssignments, id=MainFrame.ID_EASY)
-
-        self.control.GetTable().Reload()
 
         self.Show(True)
 
@@ -210,10 +238,8 @@ class MainFrame(wx.Frame):
         dlg.Destroy()
 
     def OnSave(self, evt):
-        dlg = wx.MessageDialog(self, "Not implemented",
-                               "Save", wx.OK | wx.ICON_ERROR)
-        dlg.ShowModal()
-        dlg.Destroy()
+        self.db.session.commit()
+        self.control.GetTable().Reload()
 
     def OnQuit(self, evt):
         dirty = False
@@ -227,19 +253,9 @@ class MainFrame(wx.Frame):
             dlg.Destroy()
         self.Close(True)
 
-    def OnMakeEasyAssignments(self, evt):
-        assigned_count = self.db.AssignObvious(self.control.GetTable().data)
-        self.control.GetTable().Reload()
-        dlg = wx.MessageDialog(self, "Did %d assignments." % assigned_count,
-                               "Make Easy Assignments", wx.OK)
-        dlg.ShowModal()
-        dlg.Destroy()
 
     def UpdateStatusBar(self):
         self.SetStatusText(self.control.GetStatusBarText())
-
-class MSTEditorApp(wx.PySimpleApp):
-    pass 
 
 if __name__ == "__main__":
     db = Db('sqlite:///:memory:', echo=False)
@@ -251,6 +267,5 @@ if __name__ == "__main__":
 #    db.session.commit()
 
     app = MSTEditorApp()
-    frame = MainFrame(None, wx.ID_ANY, 'Editor', db)
     app.MainLoop()
 

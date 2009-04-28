@@ -1,13 +1,36 @@
 #! /usr/local/bin/python
 
-import ui
+from ui import MainFrame
 import wx
 from db import Db
 
-db = Db('sqlite:///:memory:', echo=False)
-db.LoadTestData()
-db.session.commit()
+class MSTEditorApp(wx.PySimpleApp):
+    def __init__(self, dbstring):
+        wx.PySimpleApp.__init__(self)
+        self.db = Db(dbstring, echo=False)
+        self.frame = MainFrame(None, wx.ID_ANY, 'Editor', self.db)
+        self.Bind(wx.EVT_MENU, self.OnMakeEasys, id=MainFrame.ID_EASY)
 
-app = ui.MSTEditorApp()
-frame = ui.MainFrame(None, wx.ID_ANY, 'Editor', db)
+    def OnMakeEasys(self, evt):
+        table = self.frame.control.GetTable()
+        assigned_count = self.db.AssignObvious(table.data)
+        table.Reload()
+        dlg = wx.MessageDialog(self.frame,
+                               "Did %d assignments." % assigned_count,
+                               "Make Easy Assignments", wx.OK)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def Reload(self):
+        self.frame.control.GetTable().Reload()
+
+dbstring = 'sqlite:///:memory:'
+app = MSTEditorApp(dbstring)
+
+if dbstring == 'sqlite:///:memory:':
+    app.db.LoadTestData()
+    app.db.session.commit()
+
+app.Reload()
+
 app.MainLoop()

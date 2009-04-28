@@ -153,7 +153,9 @@ class Db:
                 Db.Scan("12:02:25.00", Db.FLAG_CORRAL_EMPTY),
                 Db.Scan("12:04:01.00", 104),
                 Db.Scan("12:04:10.00", 101),
-                Db.Scan("12:04:15.00", Db.FLAG_CORRAL_EMPTY),
+                Db.Scan("12:04:16.00", 104),
+                Db.Scan("12:04:20.00", Db.FLAG_ERROR),
+                Db.Scan("12:04:25.00", Db.FLAG_CORRAL_EMPTY),
                 Db.Scan("12:14:59.00", 105),
                 Db.Scan("12:15:03.00", Db.FLAG_CORRAL_EMPTY),
                 ])
@@ -267,7 +269,7 @@ class Db:
                 counter += check_assign(self, tableresults, i, empty_at)
                 empty_at = i
         i = len(tableresults)
-        if tableresults[i-3]['bib'] == Db.FLAG_CORRAL_EMPTY:
+        if i >= 3 and tableresults[i-3]['bib'] == Db.FLAG_CORRAL_EMPTY:
             counter += check_assign(self, tableresults, i, empty_at)
         del tableresults[:]
         return counter
