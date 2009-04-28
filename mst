@@ -8,18 +8,48 @@ class MSTEditorApp(wx.PySimpleApp):
     def __init__(self, dbstring):
         wx.PySimpleApp.__init__(self)
         self.db = Db(dbstring, echo=False)
-        self.frame = MainFrame(None, wx.ID_ANY, 'Editor', self.db)
+        self.frame = MainFrame(None, wx.ID_ANY, 'Edit Timing', self.db)
         self.Bind(wx.EVT_MENU, self.OnMakeEasys, id=MainFrame.ID_EASY)
 
     def OnMakeEasys(self, evt):
+        def check_assign(t, i, empty_at, db):
+            if not None is empty_at and empty_at == i - 3:
+                if (not None is t[i-2]['bib'] and
+                    not db.IsFlagValue(t[i-2]['bib']) and
+                    t[i-1]['bib'] is None):
+                    set = { 'impulse': t[i-1]['impulseid'] }
+                    db.session.query(Db.Scan).\
+                        filter("id = %s" % t[i-2]['scanid']).\
+                        update(set)
+                    return 1
+            return 0
+        def assign_obvious(tableresults, db):
+            counter = 0
+            tableresults.reverse()
+            empty_at = None
+            for i, row in enumerate(tableresults):
+                if row['bib'] == Db.FLAG_CORRAL_EMPTY:
+                    counter += check_assign(tableresults, i,empty_at, db)
+                    empty_at = i
+            i = len(tableresults)
+            if i >= 3 and tableresults[i-3]['bib'] == Db.FLAG_CORRAL_EMPTY:
+                counter += check_assign(tableresults, i, empty_at, db)
+            del tableresults[:]
+            return counter
+
         table = self.frame.control.GetTable()
-        assigned_count = self.db.AssignObvious(table.data)
+        assigned_count = assign_obvious(table.data, self.db)
+
         table.Reload()
         dlg = wx.MessageDialog(self.frame,
                                "Did %d assignments." % assigned_count,
                                "Make Easy Assignments", wx.OK)
         dlg.ShowModal()
         dlg.Destroy()
+
+
+
+
 
     def Reload(self):
         self.frame.control.GetTable().Reload()

@@ -248,32 +248,6 @@ class Db:
         tableresults.pop(scanrow)
         if trace: print "Popped row %d, %d left" % (scanrow, len(tableresults))
 
-    def AssignObvious(self, tableresults):
-        def check_assign(self, t, i, empty_at):
-            if not None is empty_at and empty_at == i - 3:
-                if (not None is t[i-2]['bib'] and
-                    not self.IsFlagValue(t[i-2]['bib']) and
-                    t[i-1]['bib'] is None):
-                    set = { 'impulse': t[i-1]['impulseid'] }
-                    self.session.query(Db.Scan).\
-                        filter("id = %s" % t[i-2]['scanid']).\
-                        update(set)
-                    return 1
-            return 0
-
-        counter = 0
-        tableresults.reverse()
-        empty_at = None
-        for i, row in enumerate(tableresults):
-            if row['bib'] == Db.FLAG_CORRAL_EMPTY:
-                counter += check_assign(self, tableresults, i, empty_at)
-                empty_at = i
-        i = len(tableresults)
-        if i >= 3 and tableresults[i-3]['bib'] == Db.FLAG_CORRAL_EMPTY:
-            counter += check_assign(self, tableresults, i, empty_at)
-        del tableresults[:]
-        return counter
-
     def Save(self):
         db.session.commit()
 

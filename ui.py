@@ -54,7 +54,11 @@ class MatchupTable(wx.grid.PyGridTableBase):
     def ResetView(self):
         """Trim/extend the control's rows and update all values"""
         self.GetGrid().BeginBatch()
-        
+
+        resize_columns = False
+        if self.currentRows is 0:
+            resize_columns = True
+
         if len(self.data) < self.currentRows:
             msg = wx.grid.GridTableMessage(self,
                                          wx.grid.GRIDTABLE_NOTIFY_ROWS_DELETED,
@@ -68,16 +72,11 @@ class MatchupTable(wx.grid.PyGridTableBase):
             self.GetGrid().ProcessTableMessage(msg)
         self.currentRows = len(self.data)
         self.UpdateValues()
+        if resize_columns:
+            self.GetGrid().ResizeColumns(and_outer = True)
+            
         self.GetGrid().UpdateStatusBar()
         self.GetGrid().EndBatch()
- 
-        # The scroll bars aren't resized (at least on windows)
-        # Jiggling the size of the window rescales the scrollbars
-        if False:
-            h,w = grid.GetSize()
-            grid.SetSize((h+1, w))
-            grid.SetSize((h, w))
-            grid.ForceRefresh()
  
     def UpdateValues( self ):
         """Update all displayed values"""
@@ -167,12 +166,27 @@ class MatchupGrid(wx.grid.Grid):
         # self.EnableEditing(False)
         self.SetRowLabelSize(40)
         self.SetMargins(0,0)
-        self.AutoSizeColumns(False)
+        self.EnableDragRowSize(False)
 
         wx.grid.EVT_GRID_RANGE_SELECT(self, self.OnRangeSelect)
         wx.grid.EVT_GRID_CELL_CHANGE(self, self.OnGridCellChange)
 
+#        wx.grid.EVT_GRID_CELL_LEFT_CLICK(self,self.OnGridLeftClick)
 
+    def ResizeColumns(self, and_outer = False):
+        self.AutoSizeColumns(False)
+        if and_outer:
+            self.parent.ResetWidth()
+
+    def GetColumnWidthsSum(self):
+        n = self.GetNumberCols()
+        width = self.GetRowLabelSize() + 1 # include border, ugh
+        for i in range(0,n):
+            w = self.GetColSize(i) + 1
+            width += w
+            print "width col %d is %d" % (i, w)
+        return width + 1
+        
     def OnRangeSelect(self, evt):
         if trace: print "ORS"
         if evt.Selecting():
@@ -199,7 +213,7 @@ class MatchupGrid(wx.grid.Grid):
 class MainFrame(wx.Frame):
     ID_EASY = 43
     def __init__(self, parent, id, title, db):
-        wx.Frame.__init__(self, parent, id, title, size=(300,600))
+        wx.Frame.__init__(self, parent, id, title, size=(299,600))
         self.db = db
         self.control = MatchupGrid(self, 2, db)
 
@@ -233,7 +247,7 @@ class MainFrame(wx.Frame):
         self.Show(True)
 
     def OnAbout(self, evt):
-        dlg = wx.MessageDialog(self, "Edit timing results", "About", wx.OK)
+        dlg = wx.MessageDialog(self, "Edit Timing", "About", wx.OK)
         dlg.ShowModal()
         dlg.Destroy()
 
@@ -253,9 +267,19 @@ class MainFrame(wx.Frame):
             dlg.Destroy()
         self.Close(True)
 
-
     def UpdateStatusBar(self):
         self.SetStatusText(self.control.GetStatusBarText())
+
+    def ResetWidth(self):
+        gridwidth = self.control.GetColumnWidthsSum()
+        print gridwidth
+        framesize = self.GetClientSize()
+        newsize = (gridwidth + 15, framesize[1]) # scroll bar width
+        print "newsize: ", newsize
+        self.SetClientSize(newsize)
+        size = self.GetSize()
+        self.SetMinSize((size[0], 100))
+        self.SetMaxSize((size[0], 10000))
 
 if __name__ == "__main__":
     db = Db('sqlite:///:memory:', echo=False)
