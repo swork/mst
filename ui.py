@@ -170,8 +170,10 @@ class MatchupGrid(wx.grid.Grid):
 
         wx.grid.EVT_GRID_RANGE_SELECT(self, self.OnRangeSelect)
         wx.grid.EVT_GRID_CELL_CHANGE(self, self.OnGridCellChange)
-
-#        wx.grid.EVT_GRID_CELL_LEFT_CLICK(self,self.OnGridLeftClick)
+        wx.grid.EVT_GRID_CELL_LEFT_CLICK(self,self.OnGridLeftClick)
+        wx.grid.EVT_GRID_CELL_LEFT_DCLICK(self,self.OnGridLeftDClick)
+        wx.grid.EVT_GRID_CELL_RIGHT_CLICK(self,self.OnGridRightClick)
+#        self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
 
     def ResizeColumns(self, and_outer = False):
         self.AutoSizeColumns(False)
@@ -187,8 +189,13 @@ class MatchupGrid(wx.grid.Grid):
             print "width col %d is %d" % (i, w)
         return width + 1
         
+    def UpdateStatusBar(self):
+        self.parent.UpdateStatusBar()
+
+    def GetStatusBarText(self):
+        return self.GetTable().GetStatusBarText()
+
     def OnRangeSelect(self, evt):
-        if trace: print "ORS"
         if evt.Selecting():
             top = evt.GetTopRow()
             bot = evt.GetBottomRow()
@@ -196,18 +203,72 @@ class MatchupGrid(wx.grid.Grid):
             self.GetTable().AssociateScanWithImpulseByRows(top, bot)
             self.ClearSelection()
 
-    def UpdateStatusBar(self):
-        self.parent.UpdateStatusBar()
-
-    def GetStatusBarText(self):
-        return self.GetTable().GetStatusBarText()
-
     def OnGridCellChange(self, evt):
         if trace: print("OnGridCellChange: (%d,%d)\n" %
                         (evt.GetRow(), evt.GetCol()))
         if self.GetTable().SaveNewValue(evt.GetRow(), evt.GetCol(),
                                         evt.GetString()) is None:
             alert()
+
+    def OnGridLeftClick(self, evt):
+        print "click %d,%d" % (evt.GetRow(), evt.GetCol())
+        evt.Skip()
+
+    def OnGridLeftDClick(self, evt):
+        print "dclick %d,%d" % (evt.GetRow(), evt.GetCol())
+
+    def OnGridRightClick(self, evt):
+        print "right click %d,%d" % (evt.GetRow(), evt.GetCol())
+        self.SetGridCursor(evt.GetRow(), evt.GetCol())
+
+        # only bind events once; could have done this way up top.
+        if not hasattr(self, "ctxInsertBefore"):
+            self.ctxInsertBefore = wx.NewId()
+            self.ctxInsertAfter = wx.NewId()
+            self.ctxInsertBib = wx.NewId()
+            self.ctxDeleteThis = wx.NewId()
+            self.ctxDisassociateThis = wx.NewId()
+
+            self.Bind(wx.EVT_MENU, self.OnCtxInsertBefore,
+                      id=self.ctxInsertBefore)
+            self.Bind(wx.EVT_MENU, self.OnCtxInsertAfter, 
+                      id=self.ctxInsertAfter)
+            self.Bind(wx.EVT_MENU, self.OnCtxInsertBib, 
+                      id=self.ctxInsertBib)
+            self.Bind(wx.EVT_MENU, self.OnCtxDeleteThis,
+                      id=self.ctxDeleteThis)
+            self.Bind(wx.EVT_MENU, self.OnCtxDisassociateThis,
+                      id=self.ctxDisassociateThis)
+
+        menu = wx.Menu()
+        item = wx.MenuItem(menu, self.ctxInsertBefore, "Insert Impulse Before")
+#        bmp = images.Smiles.GetBitmap()
+#        item.SetBitmap(bmp)
+        menu.AppendItem(item)
+        item = wx.MenuItem(menu, self.ctxInsertAfter, "Insert Impulse After")
+        menu.AppendItem(item)
+        item = wx.MenuItem(menu, self.ctxInsertBib, "Insert Bib Scan")
+        menu.AppendItem(item)
+        item = wx.MenuItem(menu, self.ctxDeleteThis, "Delete Bib Scan")
+        item.Enable(False)
+        menu.AppendItem(item)
+        item = wx.MenuItem(menu, self.ctxDisassociateThis, "Disassociate Bib from Impulse")
+        menu.AppendItem(item)
+
+        # Popup the menu.  If an item is selected then its handler
+        # will be called before PopupMenu returns.
+        self.PopupMenu(menu)
+        menu.Destroy()
+
+    def OnCtxInsertAfter(self, evt):
+        pass
+    def OnCtxInsertBefore(self, evt):
+        pass
+    def OnCtxInsertBib(self, evt):
+        pass
+    def OnCtxDeleteThis(self, evt):
+        pass
+    def OnCtxDisassociateThis(self, evt):
         pass
 
 class MainFrame(wx.Frame):
