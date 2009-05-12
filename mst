@@ -3,6 +3,8 @@
 todo = """
  - Test bib assignments, ensure each is unique
  - Set timing and presentation precision separately; handle ties
+ - Identify anomalies: dup bibscans, bad bibs (no record)
+ - Review .commit() -- was REQUIRED after insert, why?  (ORM is the answer)
 """
 
 from ui import MainFrame
@@ -16,10 +18,9 @@ class MSTEditorApp(wx.PySimpleApp):
         self.frame = MainFrame(None, wx.ID_ANY, 'Edit Timing', self.db)
         self.Bind(wx.EVT_MENU, self.OnMakeEasys, id=MainFrame.ID_EASY)
 
-        dlg = wx.MessageDialog(self.frame, todo, "To Do", wx.OK)
-        dlg.ShowModal()
-        dlg.Destroy()
-
+        self.todo_dlg = wx.MessageDialog(self.frame, todo, "To Do", wx.OK)
+#        self.todo_dlg.ShowModal()
+        self.todo_dlg.Destroy()
 
     def OnMakeEasys(self, evt):
         def check_assign(t, i, empty_at, db):

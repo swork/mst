@@ -156,6 +156,15 @@ class MatchupTable(wx.grid.PyGridTableBase):
             self.bibscanUnmatchedCount += 1
             self.Reload()
 
+    def DuplicateImpulse(self, row):
+        """Make a copy of an impulse record"""
+        if (self.RowType(row) != MatchupTable.ROWTYPE_IMPULSE
+            and self.RowType(row) != MatchupTable.ROWTYPE_MATCHED):
+            alert()
+        else:
+            self.db.DuplicateImpulseByID(self.data[row])
+            self.Reload()
+
     def GetStatusBarText(self):
         return "%d impulses, %d bib scans, %d unassigned" % (self.impulseCount,
                                                     self.bibscanCount,
@@ -247,16 +256,13 @@ class MatchupGrid(wx.grid.Grid):
 
         # only bind events once; could have done this way up top.
         if not hasattr(self, "ctxInsertBefore"):
-            self.ctxInsertBefore = wx.NewId()
-            self.ctxInsertAfter = wx.NewId()
+            self.ctxDuplicateImpulse = wx.NewId()
             self.ctxInsertBib = wx.NewId()
             self.ctxDeleteThis = wx.NewId()
             self.ctxDisassociateThis = wx.NewId()
 
-            self.Bind(wx.EVT_MENU, self.OnCtxInsertBefore,
-                      id=self.ctxInsertBefore)
-            self.Bind(wx.EVT_MENU, self.OnCtxInsertAfter, 
-                      id=self.ctxInsertAfter)
+            self.Bind(wx.EVT_MENU, self.OnCtxDuplicateImpulse,
+                      id=self.ctxDuplicateImpulse)
             self.Bind(wx.EVT_MENU, self.OnCtxInsertBib, 
                       id=self.ctxInsertBib)
             self.Bind(wx.EVT_MENU, self.OnCtxDeleteThis,
@@ -266,12 +272,7 @@ class MatchupGrid(wx.grid.Grid):
 
         rowtype = self.GetTable().RowType(evt.GetRow())
         menu = wx.Menu()
-        item = wx.MenuItem(menu, self.ctxInsertBefore, "Insert Impulse Before")
-        if (rowtype != MatchupTable.ROWTYPE_IMPULSE
-            and rowtype != MatchupTable.ROWTYPE_MATCHED):
-            item.Enable(False)
-        menu.AppendItem(item)
-        item = wx.MenuItem(menu, self.ctxInsertAfter, "Insert Impulse After")
+        item = wx.MenuItem(menu, self.ctxDuplicateImpulse, "Duplicate Impulse")
         if (rowtype != MatchupTable.ROWTYPE_IMPULSE
             and rowtype != MatchupTable.ROWTYPE_MATCHED):
             item.Enable(False)
@@ -294,18 +295,15 @@ class MatchupGrid(wx.grid.Grid):
         self.PopupMenu(menu)
         menu.Destroy()
 
-    def OnCtxInsertAfter(self, evt):
-        self.GetTable().InsertImpulseBefore(ctxRow)
-
-    def OnCtxInsertBefore(self, evt):
-        self.GetTable().InsertImpulseAfter(ctxRow)
+    def OnCtxDuplicateImpulse(self, evt):
+        self.GetTable().DuplicateImpulse(self.ctxRow)
 
     def OnCtxInsertBib(self, evt):
         # ask for bib number
         bib = 111
         # arrange for marking the row "artificial"
         self.GetTable().AssociateNewScanWithImpulse(ctxRow, bib)
-        pass
+
     def OnCtxDeleteThis(self, evt):
         self.GetTable().DeleteBibscan(ctxRow)
 

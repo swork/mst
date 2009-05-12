@@ -254,6 +254,11 @@ class Db:
         self.session.query(Db.Scan).filter("id = %s" % scanid).update(set)
         del(tableresults[:])    # now caller must reload
 
+    def DuplicateImpulseByID(self, tablerow):
+        impulsetime = tablerow['impulsetime']
+        self.session.add(Db.Impulse(impulsetime))
+        self.session.commit()
+
     def Save(self):
         db.session.commit()
 
