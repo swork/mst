@@ -248,6 +248,12 @@ class Db:
         tableresults.pop(scanrow)
         if trace: print "Popped row %d, %d left" % (scanrow, len(tableresults))
 
+    def UnassignImpulseByRow(self, tableresults, row):
+        scanid = tableresults[row]['scanid']
+        set = { 'impulse': None }
+        self.session.query(Db.Scan).filter("id = %s" % scanid).update(set)
+        del(tableresults[:])    # now caller must reload
+
     def Save(self):
         db.session.commit()
 

@@ -147,6 +147,15 @@ class MatchupTable(wx.grid.PyGridTableBase):
             self.bibscanUnmatchedCount -= 1
             self.ResetView()
 
+    def DisassociateScanFromImpulse(self, row):
+        """Unmark a finish impulse from a bib"""
+        if self.RowType(row) != MatchupTable.ROWTYPE_MATCHED:
+            alert()
+        else:
+            self.db.UnassignImpulseByRow(self.data, row)
+            self.bibscanUnmatchedCount += 1
+            self.Reload()
+
     def GetStatusBarText(self):
         return "%d impulses, %d bib scans, %d unassigned" % (self.impulseCount,
                                                     self.bibscanCount,
@@ -213,6 +222,8 @@ class MatchupGrid(wx.grid.Grid):
             if trace: print "OnRangeSelect: top %d, bottom %d" % (top, bot)
             self.GetTable().AssociateScanWithImpulseByRows(top, bot)
             self.ClearSelection()
+            if self.GetNumberRows() > top + 1:
+                self.SetGridCursor(top+1, 0)
 
     def OnGridCellChange(self, evt):
         if trace: print("OnGridCellChange: (%d,%d)\n" %
@@ -230,7 +241,9 @@ class MatchupGrid(wx.grid.Grid):
 
     def OnGridRightClick(self, evt):
         print "right click %d,%d" % (evt.GetRow(), evt.GetCol())
-        self.SetGridCursor(evt.GetRow(), evt.GetCol())
+        self.ctxRow = evt.GetRow() # for handlers
+        self.ctxCol = evt.GetCol()
+        self.SetGridCursor(self.ctxRow, self.ctxCol)
 
         # only bind events once; could have done this way up top.
         if not hasattr(self, "ctxInsertBefore"):
@@ -282,15 +295,22 @@ class MatchupGrid(wx.grid.Grid):
         menu.Destroy()
 
     def OnCtxInsertAfter(self, evt):
-        pass
+        self.GetTable().InsertImpulseBefore(ctxRow)
+
     def OnCtxInsertBefore(self, evt):
-        pass
+        self.GetTable().InsertImpulseAfter(ctxRow)
+
     def OnCtxInsertBib(self, evt):
+        # ask for bib number
+        bib = 111
+        # arrange for marking the row "artificial"
+        self.GetTable().AssociateNewScanWithImpulse(ctxRow, bib)
         pass
     def OnCtxDeleteThis(self, evt):
-        pass
+        self.GetTable().DeleteBibscan(ctxRow)
+
     def OnCtxDisassociateThis(self, evt):
-        pass
+        self.GetTable().DisassociateScanFromImpulse(self.ctxRow)
 
 class MainFrame(wx.Frame):
     ID_EASY = 43
