@@ -84,22 +84,33 @@ class MatchupTable(wx.grid.PyGridTableBase):
                                     wx.grid.GRIDTABLE_REQUEST_VIEW_GET_VALUES)
         self.GetGrid().ProcessTableMessage(msg)
 
+    ROWCOLOR = {}
+    ROWCOLOR[3] = "pale green"
+    ROWCOLOR[998] = "yellow"
+    ROWCOLOR[999] = "light gray"
     def GetAttr(self, row, col, huh):
-#        if trace: print "GetAttr(self, row=%d, col=%d, huh=%s); rows=%d" % (row, col, repr(huh), len(self.data))
-        if self.data[row]['bib'] == Db.FLAG_CORRAL_EMPTY:
+        t = self.RowType(row)
+        if self.ROWCOLOR.has_key(t):
             attr = wx.grid.GridCellAttr()
-            attr.SetBackgroundColour("light gray")
-            return attr
-        if self.data[row]['bib'] == Db.FLAG_ERROR:
-            attr = wx.grid.GridCellAttr()
-            attr.SetBackgroundColour("yellow")
-            return attr
-        if (not None is self.data[row]['impulseid'] and
-            not None is self.data[row]['scanid']):
-            attr = wx.grid.GridCellAttr()
-            attr.SetBackgroundColour("pale green")
+            attr.SetBackgroundColour(self.ROWCOLOR[t])
             return attr
         return None
+
+    ROWTYPE_IMPULSE = 1
+    ROWTYPE_BIBSCAN = 2
+    ROWTYPE_MATCHED = 3
+    ROWTYPE_ALERT = 998
+    ROWTYPE_EMPTY = 999
+    def RowType(self, row):
+        if self.data[row]['bib'] == Db.FLAG_CORRAL_EMPTY:
+            return self.ROWTYPE_EMPTY
+        if self.data[row]['bib'] == Db.FLAG_ERROR:
+            return self.ROWTYPE_ALERT
+        if self.data[row]['scanid']:
+            if self.data[row]['impulseid']:
+                return self.ROWTYPE_MATCHED
+            return self.ROWTYPE_BIBSCAN
+        return self.ROWTYPE_IMPULSE
 
     def GetValue(self,row,col):
         data = self.data[row][self.colMap[col]]
@@ -240,19 +251,29 @@ class MatchupGrid(wx.grid.Grid):
             self.Bind(wx.EVT_MENU, self.OnCtxDisassociateThis,
                       id=self.ctxDisassociateThis)
 
+        rowtype = self.GetTable().RowType(evt.GetRow())
         menu = wx.Menu()
         item = wx.MenuItem(menu, self.ctxInsertBefore, "Insert Impulse Before")
-#        bmp = images.Smiles.GetBitmap()
-#        item.SetBitmap(bmp)
+        if (rowtype != MatchupTable.ROWTYPE_IMPULSE
+            and rowtype != MatchupTable.ROWTYPE_MATCHED):
+            item.Enable(False)
         menu.AppendItem(item)
         item = wx.MenuItem(menu, self.ctxInsertAfter, "Insert Impulse After")
+        if (rowtype != MatchupTable.ROWTYPE_IMPULSE
+            and rowtype != MatchupTable.ROWTYPE_MATCHED):
+            item.Enable(False)
         menu.AppendItem(item)
         item = wx.MenuItem(menu, self.ctxInsertBib, "Insert Bib Scan")
+        if rowtype != MatchupTable.ROWTYPE_IMPULSE:
+            item.Enable(False)
         menu.AppendItem(item)
         item = wx.MenuItem(menu, self.ctxDeleteThis, "Delete Bib Scan")
-        item.Enable(False)
+        if rowtype != MatchupTable.ROWTYPE_BIBSCAN:
+            item.Enable(False)
         menu.AppendItem(item)
         item = wx.MenuItem(menu, self.ctxDisassociateThis, "Disassociate Bib from Impulse")
+        if rowtype != MatchupTable.ROWTYPE_MATCHED:
+            item.Enable(False)
         menu.AppendItem(item)
 
         # Popup the menu.  If an item is selected then its handler
