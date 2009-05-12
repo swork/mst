@@ -1,5 +1,10 @@
 #! /usr/local/bin/python
 
+todo = """
+ - Test bib assignments, ensure each is unique
+ - Set timing and presentation precision separately; handle ties
+"""
+
 from ui import MainFrame
 import wx
 from db import Db
@@ -10,6 +15,11 @@ class MSTEditorApp(wx.PySimpleApp):
         self.db = Db(dbstring, echo=False)
         self.frame = MainFrame(None, wx.ID_ANY, 'Edit Timing', self.db)
         self.Bind(wx.EVT_MENU, self.OnMakeEasys, id=MainFrame.ID_EASY)
+
+        dlg = wx.MessageDialog(self.frame, todo, "To Do", wx.OK)
+        dlg.ShowModal()
+        dlg.Destroy()
+
 
     def OnMakeEasys(self, evt):
         def check_assign(t, i, empty_at, db):
