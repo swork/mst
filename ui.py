@@ -199,8 +199,6 @@ class MatchupGrid(wx.grid.Grid):
 
         wx.grid.EVT_GRID_RANGE_SELECT(self, self.OnRangeSelect)
         wx.grid.EVT_GRID_CELL_CHANGE(self, self.OnGridCellChange)
-        wx.grid.EVT_GRID_CELL_LEFT_CLICK(self,self.OnGridLeftClick)
-        wx.grid.EVT_GRID_CELL_LEFT_DCLICK(self,self.OnGridLeftDClick)
         wx.grid.EVT_GRID_CELL_RIGHT_CLICK(self,self.OnGridRightClick)
 #        self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
 
@@ -240,13 +238,6 @@ class MatchupGrid(wx.grid.Grid):
         if self.GetTable().SaveNewValue(evt.GetRow(), evt.GetCol(),
                                         evt.GetString()) is None:
             alert()
-
-    def OnGridLeftClick(self, evt):
-        print "click %d,%d" % (evt.GetRow(), evt.GetCol())
-        evt.Skip()
-
-    def OnGridLeftDClick(self, evt):
-        print "dclick %d,%d" % (evt.GetRow(), evt.GetCol())
 
     def OnGridRightClick(self, evt):
         print "right click %d,%d" % (evt.GetRow(), evt.GetCol())

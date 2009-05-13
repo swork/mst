@@ -7,8 +7,9 @@ todo = """
  - Review .commit() -- was REQUIRED after insert, why?  (ORM is the answer)
 """
 
-from ui import MainFrame
+import sys, getopt
 import wx
+from ui import MainFrame
 from db import Db
 
 class MSTEditorApp(wx.PySimpleApp):
@@ -58,20 +59,78 @@ class MSTEditorApp(wx.PySimpleApp):
         dlg.ShowModal()
         dlg.Destroy()
 
-
-
-
-
     def Reload(self):
         self.frame.control.GetTable().Reload()
 
-dbstring = 'sqlite:///:memory:'
-app = MSTEditorApp(dbstring)
+    def LoadTestDataSimple(self):
+        self.db.session.add_all([
+                Db.Entry(101, "Albert"),
+                Db.Entry(102, "Bob"),
+                Db.Entry(103, "Clyde"),
+                Db.Entry(104, "Dale"),
+                Db.Entry(105, "Ernie"),
+                Db.Impulse("12:02:10.02"),
+                Db.Impulse("12:03:33.01"),
+                Db.Impulse("12:03:33.03"),
+                Db.Impulse("12:14:44.04"),
+                Db.Scan("12:02:22.00", 102),
+                Db.Scan("12:02:25.00", Db.FLAG_CORRAL_EMPTY),
+                Db.Scan("12:04:01.00", 104),
+                Db.Scan("12:04:10.00", 101),
+                Db.Scan("12:04:16.00", 104),
+                Db.Scan("12:04:20.00", Db.FLAG_ERROR),
+                Db.Scan("12:04:25.00", Db.FLAG_CORRAL_EMPTY),
+                Db.Scan("12:14:59.00", 105),
+                Db.Scan("12:15:03.00", Db.FLAG_CORRAL_EMPTY),
+                ])
 
-if dbstring == 'sqlite:///:memory:':
-    app.db.LoadTestData()
-    app.db.session.commit()
+    def LoadTestDataBig(self):
+        for bibnum in range(101,900):
+            self.db.session.add(Db.Entry(bibnum, "Rider_%d" % bibnum))
+            itime = "12:%02d:%02d.00" % (bibnum / 60, bibnum % 60)
+            self.db.session.add(Db.Impulse(itime))
+            self.db.session.add(Db.Scan(itime, bibnum))
+            self.db.session.add(Db.Scan(itime + "1", Db.FLAG_CORRAL_EMPTY))
 
-app.Reload()
+def print_usage(argv0):
+    print "%s [-h] [-c connectstring]" % argv0
 
-app.MainLoop()
+class Usage(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+
+    try:
+        try:
+            opts, args = getopt.getopt(argv[1:], "c:h", ["connect=","help"])
+            dbstring = None
+            for o, a in opts:
+                if o in ("-c", "--connect"):
+                    dbstring = a
+                elif o in ("-h", "--help"):
+                    print_usage(argv[0])
+                    return 2
+                else:
+                    assert getopt.GetoptError, "unhandled option %s" % o
+        except getopt.GetoptError, msg:
+            raise Usage(msg)
+
+        if dbstring is None:
+            dbstring = 'sqlite:///:memory:'
+        app = MSTEditorApp(dbstring)
+        if dbstring == 'sqlite:///:memory:':
+            app.LoadTestDataBig()
+            app.db.session.commit()
+        app.Reload()
+        app.MainLoop()
+        return 0
+
+    except Usage, err:
+        print >>sys.stderr, err.msg
+        print >>sys.stderr, "for help use --help"
+        return 2
+
+sys.exit(main())

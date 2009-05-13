@@ -138,28 +138,6 @@ class Db:
             
 #    def OutOfSyncTimesList(self):
 
-    def LoadTestData(self):
-        self.session.add_all([
-                Db.Entry(101, "Albert"),
-                Db.Entry(102, "Bob"),
-                Db.Entry(103, "Clyde"),
-                Db.Entry(104, "Dale"),
-                Db.Entry(105, "Ernie"),
-                Db.Impulse("12:02:10.02"),
-                Db.Impulse("12:03:33.01"),
-                Db.Impulse("12:03:33.03"),
-                Db.Impulse("12:14:44.04"),
-                Db.Scan("12:02:22.00", 102),
-                Db.Scan("12:02:25.00", Db.FLAG_CORRAL_EMPTY),
-                Db.Scan("12:04:01.00", 104),
-                Db.Scan("12:04:10.00", 101),
-                Db.Scan("12:04:16.00", 104),
-                Db.Scan("12:04:20.00", Db.FLAG_ERROR),
-                Db.Scan("12:04:25.00", Db.FLAG_CORRAL_EMPTY),
-                Db.Scan("12:14:59.00", 105),
-                Db.Scan("12:15:03.00", Db.FLAG_CORRAL_EMPTY),
-                ])
-
     def GetMatchTable(self):
         impulses = self.engine.execute("select impulses.impulsetime, scans.bib, scans.scantime, impulses.id, scans.id, scans.impulse from impulses left outer join scans on scans.impulse = impulses.id order by impulsetime")
         other_scans = self.engine.execute("select scans.scantime, scans.bib, scans.id from scans where scans.impulse is null order by scantime")
