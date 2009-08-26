@@ -11,20 +11,30 @@ trace = False
 
 Base = declarative_base()
 
-timere = re.compile(r"(\d+):(\d+):(\d+)")
+timere = re.compile(r"(\d+):(\d+):(\d+).?(\d*)")
 def ConvertToDatetime(timeValue):
     val = datetime.now()
     t = type(timeValue)
     if t == types.StringType:
         res = timere.match(timeValue)
+        ms = 0
+        if (res.group(4) != ''):
+            ms_order = len(res.group(4))
+            ms_raw = int(res.group(4))
+            ms = ms_raw * (10 ** (6 - ms_order))
         return val.replace(hour=int(res.group(1)), minute=int(res.group(2)),
-                           second=int(res.group(3)), microsecond=0, tzinfo=None)
+                           second=int(res.group(3)), microsecond=ms,
+                           tzinfo=None)
     if t == types.DateTimeType:
         return timeValue.replace(tzinfo=None)
-    raise "TimeValueConvert can't figure it out..."
+    raise "TimeValueConvert got input type %s, can't figure it out..." % t
 
 def DatetimeAsTimestring(dt):
-    return dt.strftime("%H:%M:%S")
+    return dt.strftime("%H:%M:%S.%f")
+
+def TrimTimestringToHMS(s):
+    """yyyy-mm-dd hh:mm:ss.ffffff becomes hh:mm:ss, other input becomes junk"""
+    return s[11:19]
 
 class Db:
     """Hold the database session info.  Only one instance possible?"""
@@ -70,12 +80,15 @@ class Db:
 
         id = Column(Integer(11), primary_key=True)
         impulsetime = Column(mysql.MSDateTime, nullable=False)
+        ms = Column(Integer(7), nullable=False)
 
         def __init__(self, impulsetime):
             if type(impulsetime) != datetime:
-                self.impulsetime = ConvertToDatetime(impulsetime)
+                dt = ConvertToDatetime(impulsetime)
             else:
-                self.impulsetime = impulsetime
+                dt = impulsetime
+            self.impulsetime = dt
+            self.ms = dt.microsecond
 
         def __repr__(self):
             return "<Db.Impulse('%s')>" % (self.impulsetime)
@@ -108,7 +121,7 @@ class Db:
         with finishes not yet assigned.  Each ends only when the
         corral is marked empty.  Does a rollback() so flush first."""
         impulses = db.session.query(Db.Impulse).\
-            order_by(Db.Impulse.impulsetime).\
+            order_by(Db.Impulse.impulsetime,Db.Impulse.ms,Db.Impulse.id).\
             all()
         impulses_enumeration = enumerate(impulses)
         scans = db.session.query(Db.Scan).\
@@ -166,11 +179,23 @@ class Db:
 #    def OutOfSyncTimesList(self):
 
     def GetRecentImpulseActivityTable(self, numRows):
-        impulses = self.engine.execute("select impulses.impulsetime, scans.bib, impulses.id, scans.impulse from impulses left outer join scans on scans.impulse = impulses.id order by impulsetime desc, id desc limit %d" % numRows)
+        impulses = self.engine.execute("""select impulses.impulsetime,
+                                                 impulses.ms,
+                                                 scans.bib,
+                                                 impulses.id,
+                                                 scans.impulse
+                                          from impulses
+                                             left outer join scans
+                                                 on scans.impulse = impulses.id
+                                          order by impulsetime desc,
+                                                   ms desc,
+                                                   id desc
+                                          limit %d""" % numRows)
         impulses_results = impulses.fetchall()
         results = []
         for r in impulses_results:
-            row = {  'impulseid': r[2], 'impulsetime': r[0], 'bib': r[1],
+            itime = r[0].replace(microsecond=r[1])
+            row = {  'impulseid': r[3], 'impulsetime': itime, 'bib': r[2],
                      'competitor': '' }
             results.append(row)
         if trace: print results
@@ -179,12 +204,33 @@ class Db:
     def RecordImpulse(self, impulseTime=None):
         if impulseTime is None:
             impulseTime = datetime.now()
-        print impulseTime
-        self.engine.execute("insert into impulses (impulsetime) values ('%s')" % impulseTime.isoformat())
+        if trace: print impulseTime
+        self.engine.execute("""insert into impulses (impulsetime, ms)
+                               values ('%s', %d)"""
+                            % (impulseTime.isoformat(),
+                               impulseTime.microsecond))
 
     def GetMatchTable(self):
-        impulses = self.engine.execute("select impulses.impulsetime, scans.bib, scans.scantime, impulses.id as impulses_id, scans.id, scans.impulse from impulses left outer join scans on scans.impulse = impulses.id order by impulsetime, impulses_id")
-        other_scans = self.engine.execute("select scans.scantime, scans.bib, scans.id as scans_id from scans where scans.impulse is null order by scantime, scans_id")
+        impulses_query = """select impulses.impulsetime,
+                                   impulses.ms,
+                                   scans.bib,
+                                   scans.scantime,
+                                   impulses.id as impulses_id,
+                                   scans.id,
+                                   scans.impulse
+                            from impulses
+                                left outer join scans
+                                    on scans.impulse = impulses.id
+                            order by impulsetime, impulses_id"""
+        others_query = """select scans.scantime,
+                                 scans.bib,
+                                 scans.id as scans_id
+                          from scans
+                          where scans.impulse is null
+                          order by scantime, scans_id"""
+
+        impulses = self.engine.execute(impulses_query)
+        other_scans = self.engine.execute(others_query)
 
         impulses_results = impulses.fetchall()
         other_scans_results = other_scans.fetchall()
@@ -199,10 +245,10 @@ class Db:
         try:
             ii, impulseresult = impulseresults_iterator.next()
             impulse_count += 1
-            assert not self.IsFlagValue(impulseresult[1])
-            if not None is impulseresult[1]:
+            assert not self.IsFlagValue(impulseresult[2])
+            if not None is impulseresult[2]:
                 bibscan_count += 1
-                if trace: print "0 bump bibscan for %s" % repr(impulseresult[1])
+                if trace: print "0 bump bibscan for %s" % repr(impulseresult[2])
         except StopIteration:
             ii = -1
 
@@ -217,29 +263,32 @@ class Db:
         except StopIteration:
             si = -1
 
-        # result items are (impulsetime or NULL, bib or NULL, scantime or NULL, impulseid or NULL, scanid or NULL)
+        # result items are (impulsetime or NULL, bib or NULL, scantime or NULL,
+        # impulseid or NULL, scanid or NULL)
         result = []
         while si != -1 or ii != -1:
+            impulseresult_impulsetime = \
+                impulseresult[0].replace(microsecond=impulseresult[1])
             if (si == -1
-                or (impulseresult[0] <= otherscanresult[0]
+                or (impulseresult_impulsetime <= otherscanresult[0]
                     if ii != -1 else False)):
-                result.append({"impulsetime" : impulseresult[0],
-                               "bib"         : impulseresult[1],
-                               "scantime"    : impulseresult[2],
-                               "impulseid"   : impulseresult[3],
-                               "scanid"      : impulseresult[4]})
+                result.append({"impulsetime" : impulseresult_impulsetime,
+                               "bib"         : impulseresult[2],
+                               "scantime"    : impulseresult[3],
+                               "impulseid"   : impulseresult[4],
+                               "scanid"      : impulseresult[5]})
                 try:
                     ii, impulseresult = impulseresults_iterator.next()
                     impulse_count += 1
-                    if self.IsFlagValue(impulseresult[1]):
+                    if self.IsFlagValue(impulseresult[2]):
                         inconsistent()
-                    elif not None is impulseresult[1]:
-                        if trace: print "bump bibscan for %d" % impulseresult[1]
+                    elif not None is impulseresult[2]:
+                        if trace: print "bump bibscan for %d" % impulseresult[2]
                         bibscan_count += 1
                 except StopIteration: 
                     ii = -1
             elif (ii == -1
-                  or (impulseresult[0] > otherscanresult[0]
+                  or (impulseresult_impulsetime > otherscanresult[0]
                       if si != -1 else False)):
                 result.append({"impulsetime" : None,
                                "bib"         : otherscanresult[1],
@@ -322,7 +371,7 @@ if __name__ == "__main__":
         db.session.commit()
 
     def msg(m):
-        verbose=False
+        verbose=True
         if verbose:
             print m
         else:
@@ -338,15 +387,16 @@ if __name__ == "__main__":
         join(Db.Entry).\
         filter(Db.Entry.firstname == 'Dale').\
         first().scantime
-    assert DatetimeAsTimestring(t) == "00:04:01"
-    msg("Dale's scan time: '%s' should be 00:04:01" % t)
+    dale_scantime = DatetimeAsTimestring(t)
+    msg("Dale's scan time: '%s' should be 00:04:01.000000" % dale_scantime)
+    assert dale_scantime == "00:04:01.000000"
 
     # Pretend we're assigning finish impulses to riders by hand.
     # Clyde didn't finish.  Notice Albert and Dale were scanned out of
     # order, but they were in the finish corral at the same time so we
     # knew to pay attention to them.
     impulses = db.session.query(Db.Impulse).\
-        order_by(Db.Impulse.impulsetime).\
+        order_by(Db.Impulse.impulsetime, Db.Impulse.ms, Db.Impulse.id).\
         all()
     observed_finishes = [ 'Bob', 'Albert', 'Dale', 'Ernie' ]
     for i in range(0,len(impulses)):
@@ -359,7 +409,15 @@ if __name__ == "__main__":
                                                    impulses[i].impulsetime))
         db.session.commit()
 
-    c = db.session.execute("select entries.bib, impulses.impulsetime, entries.firstname from entries, impulses, scans where entries.bib = scans.bib and scans.impulse = impulses.id order by scans.impulse")
+    c = db.session.execute("""select entries.bib,
+                                     impulses.impulsetime,
+                                     entries.firstname,
+                                     impulses.ms,
+                                     impulses.id as impulses_id
+                              from entries, impulses, scans
+                              where entries.bib = scans.bib
+                                and scans.impulse = impulses.id
+                              order by impulsetime, ms, impulses_id""")
     results = c.fetchall()
 #     results = db.session.query(Db.Impulse, Db.Entry).\
 #         join(Db.Entry).\

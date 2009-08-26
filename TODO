@@ -14,24 +14,36 @@ there.
 
 All TODO
 
-A All times manipulated as naive datetime.datetime values in local TZ,
-and stored as db datetimes
+A [Done] All times manipulated as naive datetime.datetime values in local TZ,
+and stored as db datetimes with separate ms field.  FULL DATES.
+
+A [Done] Can't order by impulse.id: DuplicateImpulse screws this up, as it
+can be done after other impulses have come in.
+
+A Db.Scan's backref is order_by=id -- what impact this? Should be
+"none" as multiple scans for the same impulse aren't possible (I
+think) as impulses.id is a ForeignKey constraint on Scan and a primary
+key (so unique) on Impulse. Check though...
 
 B Broadcast notifier for updates
+
+C HD camera on start for bib verification, in case of questions?
 
 
 Editor TODO
 
 A Red-flag multiple impulses on one bib number (multiple scans)
 
-B Run over MySQL (done?)
+A Row labels are impulse_id or scan_id for scan-only lines.
+
+A Honor impulses.erased, allow editing from here too
+
+B [done] Run over MySQL
 
 B Context-menu items into regular menus too
 
-C Save, track needs save
-
-C Sizing: column widths follow contents, initial window width follows
-columns, subsequent column widths follow window width proportionately.
+C Save, track needs save; not sure SetCellValue works in all (any)
+cases. See editor.py SaveNewValue for eg
 
 C Undo/Redo: List of bibs for undo, list of broken assignments for redo,
 and insert/delete.
@@ -41,5 +53,8 @@ C On tableresults retrieve -- Consider interleave via sort after fetch.
 
 Impulser TODO
 
-A Undo could be "click on impulse to assign to FalseImpulse rider"
+A impulses.erased column, click on row to set it (and gray it out)
+
+C Sizing: column widths follow contents, initial window width follows
+columns, subsequent column widths follow window width proportionately.
 
