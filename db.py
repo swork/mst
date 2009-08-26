@@ -4,10 +4,27 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, relation, backref, join
 from sqlalchemy.databases import mysql
 from sqlalchemy import sql
+from datetime import datetime
+import types, re
 
 trace = False
 
 Base = declarative_base()
+
+timere = re.compile(r"(\d+):(\d+):(\d+)")
+def ConvertToDatetime(timeValue):
+    val = datetime.now()
+    t = type(timeValue)
+    if t == types.StringType:
+        res = timere.match(timeValue)
+        return val.replace(hour=int(res.group(1)), minute=int(res.group(2)),
+                           second=int(res.group(3)), microsecond=0, tzinfo=None)
+    if t == types.DateTimeType:
+        return timeValue.replace(tzinfo=None)
+    raise "TimeValueConvert can't figure it out..."
+
+def DatetimeAsTimestring(dt):
+    return dt.strftime("%H:%M:%S")
 
 class Db:
     """Hold the database session info.  Only one instance possible?"""
@@ -52,11 +69,13 @@ class Db:
         __tablename__ = 'impulses'
 
         id = Column(Integer(11), primary_key=True)
-        impulsetime = Column(mysql.MSTimeStamp,
-                             server_default=sql.text('CURRENT_TIMESTAMP'))
+        impulsetime = Column(mysql.MSDateTime, nullable=False)
 
         def __init__(self, impulsetime):
-            self.impulsetime = impulsetime
+            if type(impulsetime) != datetime:
+                self.impulsetime = ConvertToDatetime(impulsetime)
+            else:
+                self.impulsetime = impulsetime
 
         def __repr__(self):
             return "<Db.Impulse('%s')>" % (self.impulsetime)
@@ -75,7 +94,10 @@ class Db:
                               backref=backref('impulses', order_by=id))
 
         def __init__(self, scantime, bib):
-            self.scantime = scantime
+            if type(scantime) != datetime:
+                self.scantime = ConvertToDatetime(scantime)
+            else:
+                self.scantime = scantime
             self.bib = bib
 
         def __repr__(self):
@@ -154,15 +176,12 @@ class Db:
         print results
         return results
 
-    def RecordImpulse(self, impulseTime=None):
-        if impulseTime is None:
-            self.engine.execute("insert into impulses (impulsetime) values (NULL)")
-        else:
-            self.engine.execute("insert into impulses (impulsetime) values ('%s')" % impulseTime)
+    def RecordImpulse(self, impulseTime=datetime.now()):
+        self.engine.execute("insert into impulses (impulsetime) values ('%s')" % impulseTime.isoformat())
 
     def GetMatchTable(self):
-        impulses = self.engine.execute("select impulses.impulsetime, scans.bib, scans.scantime, impulses.id, scans.id, scans.impulse from impulses left outer join scans on scans.impulse = impulses.id order by impulsetime")
-        other_scans = self.engine.execute("select scans.scantime, scans.bib, scans.id from scans where scans.impulse is null order by scantime")
+        impulses = self.engine.execute("select impulses.impulsetime, scans.bib, scans.scantime, impulses.id as impulses_id, scans.id, scans.impulse from impulses left outer join scans on scans.impulse = impulses.id order by impulsetime, impulses_id")
+        other_scans = self.engine.execute("select scans.scantime, scans.bib, scans.id as scans_id from scans where scans.impulse is null order by scantime, scans_id")
 
         impulses_results = impulses.fetchall()
         other_scans_results = other_scans.fetchall()
@@ -267,6 +286,38 @@ class Db:
 
 if __name__ == "__main__":
 
+    def LoadTestData(db):
+        db.session.add_all([
+                Db.Entry(101, "Albert"),
+                Db.Impulse("12:02:10"),
+                Db.Scan("12:02:22", 102),
+                ])
+        db.session.commit()
+        db.engine.execute("delete from entries")
+        db.engine.execute("delete from impulses")
+        db.engine.execute("delete from scans")
+        db.session.add_all([
+                Db.Entry(101, "Albert"),
+                Db.Entry(102, "Bob"),
+                Db.Entry(103, "Clyde"),
+                Db.Entry(104, "Dale"),
+                Db.Entry(105, "Ernie"),
+                Db.Impulse("12:02:10"),
+                Db.Impulse("12:03:33"),
+                Db.Impulse("12:03:33"),
+                Db.Impulse("12:14:44"),
+                Db.Scan("12:02:22", 102),
+                Db.Scan("12:02:25", Db.FLAG_CORRAL_EMPTY),
+                Db.Scan("12:04:01", 104),
+                Db.Scan("12:04:10", 101),
+                Db.Scan("12:04:16", 104),
+                Db.Scan("12:04:20", Db.FLAG_ERROR),
+                Db.Scan("12:04:25", Db.FLAG_CORRAL_EMPTY),
+                Db.Scan("12:14:59", 105),
+                Db.Scan("12:15:03", Db.FLAG_CORRAL_EMPTY),
+                ])
+        db.session.commit()
+
     def msg(m):
         verbose=True
         if verbose:
@@ -274,18 +325,19 @@ if __name__ == "__main__":
         else:
             print '.',
 
-    db = Db('sqlite:///:memory:', echo=False)
-#   db = Db('nomysql://test:test@localhost/test', echo=False)
+#    db = Db('sqlite:///:memory:', echo=False)
+    db = Db('mysql://anonymous@localhost/test', echo=False)
 
-    db.LoadTestData()
+    LoadTestData(db)
     db.session.commit()
 
     t = db.session.query(Db.Scan).\
         join(Db.Entry).\
         filter(Db.Entry.firstname == 'Dale').\
         first().scantime
-    assert t == "12:04:01.00"
-    msg("Dale's scan time: '%s' should be 12:04:01.00" % t)
+    print "t:%s type:%s" % (str(t), type(t))
+    assert DatetimeAsTimestring(t) == "12:04:01"
+    msg("Dale's scan time: '%s' should be 12:04:01" % t)
 
     # Pretend we're assigning finish impulses to riders by hand.
     # Clyde didn't finish.  Notice Albert and Dale were scanned out of
@@ -296,18 +348,20 @@ if __name__ == "__main__":
         all()
     observed_finishes = [ 'Bob', 'Albert', 'Dale', 'Ernie' ]
     for i in range(0,len(impulses)):
-        rider = db.session.query(Db.Entry).\
+        entry = db.session.query(Db.Entry).\
             filter(Db.Entry.firstname == observed_finishes[i]).first()
-        impulses[i].bib = rider.bib
+        print "Entry:%s impulses[i]:%s" % (str(entry), str(impulses[i]))
+        impulses[i].bib = entry.bib
         print "Assigned bib %d -> finish time %s" % (impulses[i].bib,
                                                      impulses[i].impulsetime)
+        db.session.commit()
 
-    db.session.commit()
-
-    results = db.session.query(Db.Impulse, Db.Entry).\
-        join(Db.Entry).\
-        order_by(Db.Impulse.impulsetime).\
-        all()
+    c = db.session.execute("select entries.bib, impulses.impulsetime, entries.firstname from entries, impulses, scans where entries.bib = scans.bib and scans.impulse = impulses.id order by scans.impulse")
+    results = c.fetchall()
+#     results = db.session.query(Db.Impulse, Db.Entry).\
+#         join(Db.Entry).\
+#         order_by(Db.Impulse.impulsetime).\
+#         all()
 
     msg("Finish Report:")
     for i in range(0,len(results)):
@@ -318,4 +372,4 @@ if __name__ == "__main__":
 
     msg("Compare with observed finishes: %s" % repr(observed_finishes))
 
-    msg("Busy Times List: %s" % db.BusyTimesList(True))
+    msg("Busy Times List: %s" % db.BusyTimesList())

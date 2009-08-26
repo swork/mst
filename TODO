@@ -14,14 +14,19 @@ there.
 
 All TODO
 
-Broadcast notifier for updates
+A All times manipulated as naive datetime.datetime values in local TZ,
+and stored as db datetimes
+
+B Broadcast notifier for updates
 
 
 Editor TODO
 
 A Red-flag multiple impulses on one bib number (multiple scans)
 
-B Run over MySQL
+B Run over MySQL (done?)
+
+B Context-menu items into regular menus too
 
 C Save, track needs save
 

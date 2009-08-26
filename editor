@@ -69,28 +69,28 @@ class MSTEditorApp(wx.PySimpleApp):
                 Db.Entry(103, "Clyde"),
                 Db.Entry(104, "Dale"),
                 Db.Entry(105, "Ernie"),
-                Db.Impulse("12:02:10.02"),
-                Db.Impulse("12:03:33.01"),
-                Db.Impulse("12:03:33.03"),
-                Db.Impulse("12:14:44.04"),
-                Db.Scan("12:02:22.00", 102),
-                Db.Scan("12:02:25.00", Db.FLAG_CORRAL_EMPTY),
-                Db.Scan("12:04:01.00", 104),
-                Db.Scan("12:04:10.00", 101),
-                Db.Scan("12:04:16.00", 104),
-                Db.Scan("12:04:20.00", Db.FLAG_ERROR),
-                Db.Scan("12:04:25.00", Db.FLAG_CORRAL_EMPTY),
-                Db.Scan("12:14:59.00", 105),
-                Db.Scan("12:15:03.00", Db.FLAG_CORRAL_EMPTY),
+                Db.Impulse("12:02:10"),
+                Db.Impulse("12:03:33"),
+                Db.Impulse("12:03:33"),
+                Db.Impulse("12:14:44"),
+                Db.Scan("12:02:22", 102),
+                Db.Scan("12:02:25", Db.FLAG_CORRAL_EMPTY),
+                Db.Scan("12:04:01", 104),
+                Db.Scan("12:04:10", 101),
+                Db.Scan("12:04:16", 104),
+                Db.Scan("12:04:20", Db.FLAG_ERROR),
+                Db.Scan("12:04:25", Db.FLAG_CORRAL_EMPTY),
+                Db.Scan("12:14:59", 105),
+                Db.Scan("12:15:03", Db.FLAG_CORRAL_EMPTY),
                 ])
 
     def LoadTestDataBig(self):
         for bibnum in range(101,900):
             self.db.session.add(Db.Entry(bibnum, "Rider_%d" % bibnum))
-            itime = "12:%02d:%02d.00" % (bibnum / 60, bibnum % 60)
+            itime = "12:%02d:%02d" % (bibnum / 60, bibnum % 60)
             self.db.session.add(Db.Impulse(itime))
             self.db.session.add(Db.Scan(itime, bibnum))
-            self.db.session.add(Db.Scan(itime + "1", Db.FLAG_CORRAL_EMPTY))
+            self.db.session.add(Db.Scan(itime, Db.FLAG_CORRAL_EMPTY))
 
 def print_usage(argv0):
     print "%s [-h] [-c connectstring]" % argv0
@@ -122,7 +122,7 @@ def main(argv=None):
             dbstring = 'mysql://anonymous@localhost/test'
 #            dbstring = 'sqlite:///:memory:'
         app = MSTEditorApp(dbstring)
-        if True or dbstring == 'sqlite:///:memory:':
+        if dbstring == 'sqlite:///:memory:':
             app.LoadTestDataBig()
             app.db.session.commit()
         app.Reload()
