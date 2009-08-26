@@ -173,10 +173,13 @@ class Db:
             row = {  'impulseid': r[2], 'impulsetime': r[0], 'bib': r[1],
                      'competitor': '' }
             results.append(row)
-        print results
+        if trace: print results
         return results
 
-    def RecordImpulse(self, impulseTime=datetime.now()):
+    def RecordImpulse(self, impulseTime=None):
+        if impulseTime is None:
+            impulseTime = datetime.now()
+        print impulseTime
         self.engine.execute("insert into impulses (impulsetime) values ('%s')" % impulseTime.isoformat())
 
     def GetMatchTable(self):
@@ -302,24 +305,24 @@ if __name__ == "__main__":
                 Db.Entry(103, "Clyde"),
                 Db.Entry(104, "Dale"),
                 Db.Entry(105, "Ernie"),
-                Db.Impulse("12:02:10"),
-                Db.Impulse("12:03:33"),
-                Db.Impulse("12:03:33"),
-                Db.Impulse("12:14:44"),
-                Db.Scan("12:02:22", 102),
-                Db.Scan("12:02:25", Db.FLAG_CORRAL_EMPTY),
-                Db.Scan("12:04:01", 104),
-                Db.Scan("12:04:10", 101),
-                Db.Scan("12:04:16", 104),
-                Db.Scan("12:04:20", Db.FLAG_ERROR),
-                Db.Scan("12:04:25", Db.FLAG_CORRAL_EMPTY),
-                Db.Scan("12:14:59", 105),
-                Db.Scan("12:15:03", Db.FLAG_CORRAL_EMPTY),
+                Db.Impulse("00:02:10"),
+                Db.Impulse("00:03:33"),
+                Db.Impulse("00:03:33"),
+                Db.Impulse("00:14:44"),
+                Db.Scan("00:02:22", 102),
+                Db.Scan("00:02:25", Db.FLAG_CORRAL_EMPTY),
+                Db.Scan("00:04:01", 104),
+                Db.Scan("00:04:10", 101),
+                Db.Scan("00:04:16", 104),
+                Db.Scan("00:04:20", Db.FLAG_ERROR),
+                Db.Scan("00:04:25", Db.FLAG_CORRAL_EMPTY),
+                Db.Scan("00:14:59", 105),
+                Db.Scan("00:15:03", Db.FLAG_CORRAL_EMPTY),
                 ])
         db.session.commit()
 
     def msg(m):
-        verbose=True
+        verbose=False
         if verbose:
             print m
         else:
@@ -335,9 +338,8 @@ if __name__ == "__main__":
         join(Db.Entry).\
         filter(Db.Entry.firstname == 'Dale').\
         first().scantime
-    print "t:%s type:%s" % (str(t), type(t))
-    assert DatetimeAsTimestring(t) == "12:04:01"
-    msg("Dale's scan time: '%s' should be 12:04:01" % t)
+    assert DatetimeAsTimestring(t) == "00:04:01"
+    msg("Dale's scan time: '%s' should be 00:04:01" % t)
 
     # Pretend we're assigning finish impulses to riders by hand.
     # Clyde didn't finish.  Notice Albert and Dale were scanned out of
@@ -350,10 +352,11 @@ if __name__ == "__main__":
     for i in range(0,len(impulses)):
         entry = db.session.query(Db.Entry).\
             filter(Db.Entry.firstname == observed_finishes[i]).first()
-        print "Entry:%s impulses[i]:%s" % (str(entry), str(impulses[i]))
-        impulses[i].bib = entry.bib
-        print "Assigned bib %d -> finish time %s" % (impulses[i].bib,
-                                                     impulses[i].impulsetime)
+        allscans = db.session.query(Db.Scan).\
+            filter(Db.Scan.bib == entry.bib).all()
+        allscans[-1].impulse = impulses[i].id
+        msg("Assigned bib %d -> finish time %s" % (entry.bib,
+                                                   impulses[i].impulsetime))
         db.session.commit()
 
     c = db.session.execute("select entries.bib, impulses.impulsetime, entries.firstname from entries, impulses, scans where entries.bib = scans.bib and scans.impulse = impulses.id order by scans.impulse")
@@ -365,11 +368,14 @@ if __name__ == "__main__":
 
     msg("Finish Report:")
     for i in range(0,len(results)):
-        msg("%3d: %3d %8.8s %-20s" % (i+1,
-                                        results[i][0].bib,
-                                        results[i][0].impulsetime, 
-                                        results[i][1].firstname))
+        msg("%3d: bib:%3d time:%s name:%-20s" % (i+1,
+                                        results[i][0],
+                                        results[i][1],
+                                        results[i][2]))
 
     msg("Compare with observed finishes: %s" % repr(observed_finishes))
+    assert(len(results) == len(observed_finishes))
+    for i in range(0, len(observed_finishes)):
+        assert(results[i][2] == observed_finishes[i])
 
     msg("Busy Times List: %s" % db.BusyTimesList())
