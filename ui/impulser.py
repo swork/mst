@@ -13,7 +13,7 @@ def alert():
 
 class ActivityTable(wx.grid.PyGridTableBase):
     def __init__(self, db, grid):
-        print "activitytable::init"
+        if trace: print "activitytable::init"
         wx.grid.PyGridTableBase.__init__(self)
         self.gridRef = weakref.ref(grid)
         self.db = db
@@ -30,7 +30,7 @@ class ActivityTable(wx.grid.PyGridTableBase):
                           ]
 
     def Reload(self):
-        print "reload"
+        if trace: print "reload"
         self.data = self.db.GetRecentImpulseActivityTable(self.WantNumberRows())
         self.ResetView()
 
@@ -38,12 +38,12 @@ class ActivityTable(wx.grid.PyGridTableBase):
         return self.gridRef()
 
     def GetNumberRows(self):
-        print "getnumberrows: %d" % len(self.data)
+        if trace: print "getnumberrows: %d" % len(self.data)
         return len(self.data)
 
     def WantNumberRows(self):
         if (len(self.data)):
-            print self.GetGrid().GetSize()
+            if trace: print "wantnumberrows: gridsize:%s" % str(self.GetGrid().GetSize())
             return ((self.GetGrid().GetSize()[1]
                      / self.GetGrid().GetRowSize(0))
                     - 1)
@@ -125,7 +125,7 @@ class ActivityGrid(wx.grid.Grid):
         for i in range(0,n):
             w = self.GetColSize(i) + 1
             width += w
-            print "width col %d is %d" % (i, w)
+            if trace: print "width col %d is %d" % (i, w)
         return width + 1
 
     def Reload(self):
