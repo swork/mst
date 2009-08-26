@@ -52,6 +52,13 @@ class MatchupTable(wx.grid.PyGridTableBase):
     def GetColLabelValue(self, col):
         return self.colLabels[col]
 
+    def GetRowLabelValue(self, row):
+        if len(self.data) > row:
+            if self.data[row]['impulseid'] is None:
+                return self.data[row]['scanid']
+            return self.data[row]['impulseid']
+        return None
+
     def ResetView(self):
         """Trim/extend the control's rows and update all values"""
         self.GetGrid().BeginBatch()
