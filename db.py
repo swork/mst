@@ -330,10 +330,16 @@ class Db:
         self.session.query(Db.Scan).filter("id = %s" % scanid).update(set)
         del(tableresults[:])    # now caller must reload
 
-    def DuplicateImpulseByID(self, tablerow):
-        impulsetime = tablerow['impulsetime']
-        self.session.add(Db.Impulse(impulsetime))
-        self.session.commit()
+#     def DuplicateImpulseByID(self, tablerow):
+#         impulsetime = tablerow['impulsetime']
+#         self.session.add(Db.Impulse(impulsetime))
+#         self.session.commit()
+
+    def EraseImpulseByID(self, impulseid):
+        self.engine.execute("""update impulses
+                               set erased='%s'
+                               where id=%s""" % (datetime.now().isoformat(),
+                                                 impulseid))
 
     def Save(self):
         db.session.commit()

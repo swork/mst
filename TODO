@@ -34,13 +34,15 @@ key (so unique) on Impulse. Check though...
 
 Editor TODO
 
-A Honor impulses.erased, allow editing from here too
+A Disallow assigning across "empty corral" marker
+
+B No need to see dates
 
 B Context-menu items into regular menus too
 
 B Validations: no impulses.erased assigned to scans, no impulses
 assigned to scans, no scans unassigned, ID multiple impulses
-on one bib (laps), more? 
+on one bib (laps), no impulses assigned to earlier scans, more? 
 
 C Save, track needs save; not sure SetCellValue works in all (any)
 cases. See editor.py SaveNewValue for eg
@@ -51,11 +53,14 @@ and insert/delete.  impulses.erased
 A [done] Row labels are impulse_id or scan_id for scan-only lines.
 B [done] Run over MySQL
 C [wontdo] On tableresults retrieve -- Consider interleave via sort after fetch.
+A [done] Honor impulses.erased, add to operations
 
 
 Impulser TODO
 
 A impulses.erased column, click on row to set it (and gray it out)
+
+B No need to see dates
 
 C Sizing: column widths follow contents, initial window width follows
 columns, subsequent column widths follow window width proportionately.

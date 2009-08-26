@@ -106,6 +106,14 @@ class ActivityTable(wx.grid.PyGridTableBase):
                                     wx.grid.GRIDTABLE_REQUEST_VIEW_GET_VALUES)
         self.GetGrid().ProcessTableMessage(msg)
 
+    def EraseImpulse(self, row):
+        """Mark impulse record as erased"""
+        if not None is self.data[row]['bib']:
+            alert()
+        else:
+            self.db.EraseImpulseByID(self.data[row]['impulseid'])
+            self.Reload()
+
 class ActivityGrid(wx.grid.Grid):
     def __init__(self, parent, db):
         wx.grid.Grid.__init__(self, parent, -1)
@@ -117,9 +125,32 @@ class ActivityGrid(wx.grid.Grid):
         self.SetMargins(0,0)
         self.EnableDragRowSize(False)
         wx.grid.EVT_GRID_CELL_LEFT_CLICK(self, self.OnGridCellClick)
+        wx.grid.EVT_GRID_CELL_RIGHT_CLICK(self,self.OnGridRightClick)
 
     def OnGridCellClick(self, evt):
         parent.RecordImpulse()
+
+    def OnGridRightClick(self, evt):
+        print "right click %d,%d" % (evt.GetRow(), evt.GetCol())
+        self.ctxRow = evt.GetRow() # for handlers
+        self.ctxCol = evt.GetCol()
+        self.SetGridCursor(self.ctxRow, self.ctxCol)
+
+        # only bind events once; could have done this way up top.
+        if not hasattr(self, "ctxEraseImpulse"):
+            self.ctxEraseImpulse = wx.NewId()
+            self.Bind(wx.EVT_MENU, self.OnCtxEraseImpulse,
+                      id=self.ctxEraseImpulse)
+
+        menu = wx.Menu()
+        item = wx.MenuItem(menu, self.ctxEraseImpulse, "Erase This Impulse")
+        menu.AppendItem(item)
+
+        self.PopupMenu(menu)
+        menu.Destroy()
+
+    def OnCtxEraseImpulse(self, evt):
+        self.GetTable().EraseImpulse(self.ctxRow)
 
     def GetColumnWidthsSum(self):
         n = self.GetNumberCols()
