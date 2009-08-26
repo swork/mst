@@ -36,8 +36,6 @@ Editor TODO
 
 A Disallow assigning across "empty corral" marker
 
-B No need to see dates
-
 B Context-menu items into regular menus too
 
 B Validations: no impulses.erased assigned to scans, no impulses
@@ -54,6 +52,7 @@ A [done] Row labels are impulse_id or scan_id for scan-only lines.
 B [done] Run over MySQL
 C [wontdo] On tableresults retrieve -- Consider interleave via sort after fetch.
 A [done] Honor impulses.erased, add to operations
+B [done] No need to see dates
 
 
 Impulser TODO

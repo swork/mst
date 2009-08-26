@@ -2,7 +2,7 @@
 
 import wx
 import wx.grid
-from db import Db
+from db import Db, DatetimeAsTimestring
 import weakref
 import re
 
@@ -30,6 +30,9 @@ class MatchupTable(wx.grid.PyGridTableBase):
                           wx.grid.GRID_VALUE_NUMBER,
                           wx.grid.GRID_VALUE_STRING,
                           ]
+        self.displayMappers = {}
+        self.displayMappers['scantime'] = lambda x: DatetimeAsTimestring(x)[0:8]
+        self.displayMappers['impulsetime']= lambda x: DatetimeAsTimestring(x)
         self.timere = re.compile("\d\d:\d\d:\d\d.\d+")
 
     def Reload(self):
@@ -121,7 +124,12 @@ class MatchupTable(wx.grid.PyGridTableBase):
         return self.ROWTYPE_IMPULSE
 
     def GetValue(self,row,col):
-        data = self.data[row][self.colMap[col]]
+        col_value_name = self.colMap[col]
+        col_display_mapper = lambda x: x
+        if (self.displayMappers.has_key(col_value_name)
+            and not None is self.data[row][col_value_name]):
+            col_display_mapper = self.displayMappers[col_value_name]
+        data = col_display_mapper(self.data[row][col_value_name])
         if data is None:
             return ""
         else:
