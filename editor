@@ -9,7 +9,7 @@ todo = """
 
 import sys, getopt
 import wx
-from ui import MainFrame
+from ui.editor import MainFrame
 from db import Db
 
 class MSTEditorApp(wx.PySimpleApp):
@@ -119,9 +119,10 @@ def main(argv=None):
             raise Usage(msg)
 
         if dbstring is None:
-            dbstring = 'sqlite:///:memory:'
+            dbstring = 'mysql://anonymous@localhost/test'
+#            dbstring = 'sqlite:///:memory:'
         app = MSTEditorApp(dbstring)
-        if dbstring == 'sqlite:///:memory:':
+        if True or dbstring == 'sqlite:///:memory:':
             app.LoadTestDataBig()
             app.db.session.commit()
         app.Reload()

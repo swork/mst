@@ -38,6 +38,7 @@ class MatchupTable(wx.grid.PyGridTableBase):
          self.impulseCount, 
          self.bibscanCount,
          self.bibscanUnmatchedCount) = self.db.GetMatchTable()
+        print self.data
         self.ResetView()
 
     def GetGrid(self):
@@ -371,16 +372,4 @@ class MainFrame(wx.Frame):
         size = self.GetSize()
         self.SetMinSize((size[0], 100))
         self.SetMaxSize((size[0], 10000))
-
-if __name__ == "__main__":
-    db = Db('sqlite:///:memory:', echo=False)
-    db.LoadTestData()
-    db.session.commit()
-
-#    set = { "impulse": 2 }
-#    db.session.query(Db.Scan).filter("bib = 101").update(set)
-#    db.session.commit()
-
-    app = MSTEditorApp()
-    app.MainLoop()
 

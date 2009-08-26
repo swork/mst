@@ -2,6 +2,8 @@ from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, relation, backref, join
+from sqlalchemy.databases import mysql
+from sqlalchemy import sql
 
 trace = False
 
@@ -13,12 +15,14 @@ class Db:
     # Special "bib" numbers
     FLAG_CORRAL_EMPTY = 999
     FLAG_ERROR = 998
+    FLAG_DONT_ASSIGN = 0
 
     def IsFlagValue(self, bibnumber): # s.b. class-static member fn
         if bibnumber is None:
             return False
         if (bibnumber == Db.FLAG_CORRAL_EMPTY
-            or bibnumber == Db.FLAG_ERROR):
+            or bibnumber == Db.FLAG_ERROR
+            or bibnumber == Db.FLAG_DONT_ASSIGN):
             return True
         return False
 
@@ -32,9 +36,9 @@ class Db:
         """Registration info for an entrant"""
         __tablename__ = 'entries'
 
-        id = Column(Integer, primary_key=True)
-        firstname = Column(String)
-        bib = Column(Integer)
+        id = Column(Integer(11), primary_key=True)
+        firstname = Column(String(40))
+        bib = Column(Integer(11))
 
         def __init__(self, bib, firstname):
             self.bib = bib
@@ -47,8 +51,9 @@ class Db:
         """Time at which *someone* crossed the finish line. Assign bib later"""
         __tablename__ = 'impulses'
 
-        id = Column(Integer, primary_key=True)
-        impulsetime = Column(String)
+        id = Column(Integer(11), primary_key=True)
+        impulsetime = Column(mysql.MSTimeStamp,
+                             server_default=sql.text('CURRENT_TIMESTAMP'))
 
         def __init__(self, impulsetime):
             self.impulsetime = impulsetime
@@ -60,10 +65,10 @@ class Db:
         """Bib number and time scanned as finisher leaves the finish corral"""
         __tablename__ = 'scans'
 
-        id = Column(Integer, primary_key=True)
-        scantime = Column(String)
-        bib = Column(Integer, ForeignKey("entries.bib"))
-        impulse = Column(Integer, ForeignKey("impulses.id"))
+        id = Column(Integer(11), primary_key=True)
+        scantime = Column(mysql.MSDateTime)
+        bib = Column(Integer(11), ForeignKey("entries.bib"))
+        impulse = Column(Integer(11), ForeignKey("impulses.id"))
 
         entry_bib = relation("Entry", backref=backref('scans', order_by=bib))
         impulse_id = relation("Impulse",
@@ -137,6 +142,23 @@ class Db:
         return results
             
 #    def OutOfSyncTimesList(self):
+
+    def GetRecentImpulseActivityTable(self, numRows):
+        impulses = self.engine.execute("select impulses.impulsetime, scans.bib, impulses.id, scans.impulse from impulses left outer join scans on scans.impulse = impulses.id order by impulsetime desc, id desc limit %d" % numRows)
+        impulses_results = impulses.fetchall()
+        results = []
+        for r in impulses_results:
+            row = {  'impulseid': r[2], 'impulsetime': r[0], 'bib': r[1],
+                     'competitor': '' }
+            results.append(row)
+        print results
+        return results
+
+    def RecordImpulse(self, impulseTime=None):
+        if impulseTime is None:
+            self.engine.execute("insert into impulses (impulsetime) values (NULL)")
+        else:
+            self.engine.execute("insert into impulses (impulsetime) values ('%s')" % impulseTime)
 
     def GetMatchTable(self):
         impulses = self.engine.execute("select impulses.impulsetime, scans.bib, scans.scantime, impulses.id, scans.id, scans.impulse from impulses left outer join scans on scans.impulse = impulses.id order by impulsetime")
@@ -253,6 +275,7 @@ if __name__ == "__main__":
             print '.',
 
     db = Db('sqlite:///:memory:', echo=False)
+#   db = Db('nomysql://test:test@localhost/test', echo=False)
 
     db.LoadTestData()
     db.session.commit()

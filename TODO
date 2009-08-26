@@ -1,0 +1,40 @@
+Impulser accepts Click, serial line interrupt, timing system impulse,
+whatever and logs a finish time impulse. On receipt of update notice,
+adds recent activity to running update view.
+
+Recorder accepts bib numbers or notice placards ('999' etc.),
+logs. IFF COMPLETELY UNAMBIGUOUS, MIGHT match next finish impulse and
+broadcast an update notice.
+
+Editor handles matchup of ambiguous cases.
+
+"Sequel Pro" is ad-hoc database manipulator, let's be careful out
+there.
+
+
+All TODO
+
+Broadcast notifier for updates
+
+
+Editor TODO
+
+A Red-flag multiple impulses on one bib number (multiple scans)
+
+B Run over MySQL
+
+C Save, track needs save
+
+C Sizing: column widths follow contents, initial window width follows
+columns, subsequent column widths follow window width proportionately.
+
+C Undo/Redo: List of bibs for undo, list of broken assignments for redo,
+and insert/delete.
+
+C On tableresults retrieve -- Consider interleave via sort after fetch.
+
+
+Impulser TODO
+
+A Undo could be "click on impulse to assign to FalseImpulse rider"
+

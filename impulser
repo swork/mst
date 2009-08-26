@@ -1,0 +1,53 @@
+#! /usr/local/bin/python
+
+import sys, getopt
+import wx
+from ui.impulser import MainFrame
+from db import Db
+
+class MSTImpulserApp(wx.PySimpleApp):
+    def __init__(self, dbstring):
+        wx.PySimpleApp.__init__(self)
+        self.db = Db(dbstring, echo=False)
+        self.frame = MainFrame(None, wx.ID_ANY, 'Generate Finish Impulses',
+                               self.db)
+
+    def Reload(self):
+        self.frame.Refresh()
+
+class Usage(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+
+    try:
+        try:
+            opts, args = getopt.getopt(argv[1:], "c:h", ["connect=","help"])
+            dbstring = None
+            for o, a in opts:
+                if o in ("-c", "--connect"):
+                    dbstring = a
+                elif o in ("-h", "--help"):
+                    print_usage(argv[0])
+                    return 2
+                else:
+                    assert getopt.GetoptError, "unhandled option %s" % o
+        except getopt.GetoptError, msg:
+            raise Usage(msg)
+
+        if dbstring is None:
+            dbstring = 'mysql://anonymous@localhost/test'
+        app = MSTImpulserApp(dbstring)
+        app.Reload()
+        app.MainLoop()
+        return 0
+
+    except Usage, err:
+        print >>sys.stderr, err.msg
+        print >>sys.stderr, "for help use --help"
+        return 2
+
+sys.exit(main())
