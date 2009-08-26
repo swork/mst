@@ -32,6 +32,8 @@ class ActivityTable(wx.grid.PyGridTableBase):
     def Reload(self):
         if trace: print "reload"
         self.data = self.db.GetRecentImpulseActivityTable(self.WantNumberRows())
+        self.attrcache = {}
+        if trace: print self.data
         self.ResetView()
 
     def GetGrid(self):

@@ -65,7 +65,7 @@ class Db:
 
         id = Column(Integer(11), primary_key=True)
         firstname = Column(String(40))
-        bib = Column(Integer(11))
+        bib = Column(Integer(11), nullable=False)
 
         def __init__(self, bib, firstname):
             self.bib = bib
@@ -81,6 +81,7 @@ class Db:
         id = Column(Integer(11), primary_key=True)
         impulsetime = Column(mysql.MSDateTime, nullable=False)
         ms = Column(Integer(7), nullable=False)
+        erased = Column(mysql.MSDateTime, nullable=True, default=None)
 
         def __init__(self, impulsetime):
             if type(impulsetime) != datetime:
@@ -98,9 +99,9 @@ class Db:
         __tablename__ = 'scans'
 
         id = Column(Integer(11), primary_key=True)
-        scantime = Column(mysql.MSDateTime)
-        bib = Column(Integer(11), ForeignKey("entries.bib"))
-        impulse = Column(Integer(11), ForeignKey("impulses.id"))
+        scantime = Column(mysql.MSDateTime, nullable=False)
+        bib = Column(Integer(11), ForeignKey("entries.bib"), nullable=False)
+        impulse = Column(Integer(11), ForeignKey("impulses.id"), nullable=True)
 
         entry_bib = relation("Entry", backref=backref('scans', order_by=bib))
         impulse_id = relation("Impulse",
@@ -183,20 +184,23 @@ class Db:
                                                  impulses.ms,
                                                  scans.bib,
                                                  impulses.id,
-                                                 scans.impulse
+                                                 scans.impulse,
+                                                 impulses.erased,
+                                                 scans.id as scans_id
                                           from impulses
                                              left outer join scans
                                                  on scans.impulse = impulses.id
+                                          where impulses.erased is NULL
                                           order by impulsetime desc,
                                                    ms desc,
-                                                   id desc
+                                                   impulses.id desc
                                           limit %d""" % numRows)
         impulses_results = impulses.fetchall()
         results = []
         for r in impulses_results:
             itime = r[0].replace(microsecond=r[1])
             row = {  'impulseid': r[3], 'impulsetime': itime, 'bib': r[2],
-                     'competitor': '' }
+                     'competitor': '', 'erased': r[5], 'scanid': r[6] }
             results.append(row)
         if trace: print results
         return results
@@ -221,6 +225,7 @@ class Db:
                             from impulses
                                 left outer join scans
                                     on scans.impulse = impulses.id
+                            where impulses.erased is NULL
                             order by impulsetime, impulses_id"""
         others_query = """select scans.scantime,
                                  scans.bib,

@@ -16,6 +16,8 @@ All TODO
 
 B Broadcast notifier for updates
 
+B Explore caching GetAttr results by row
+
 B Q for Charlie: finish corral handling of multi-lap competitors
 
 C HD camera on start for bib verification, in case of questions?
@@ -49,7 +51,6 @@ and insert/delete.  impulses.erased
 A [done] Row labels are impulse_id or scan_id for scan-only lines.
 B [done] Run over MySQL
 C [wontdo] On tableresults retrieve -- Consider interleave via sort after fetch.
-
 
 
 Impulser TODO
