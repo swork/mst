@@ -32,10 +32,6 @@ def ConvertToDatetime(timeValue):
 def DatetimeAsTimestring(dt):
     return dt.strftime("%H:%M:%S.%f")
 
-def TrimTimestringToHMS(s):
-    """yyyy-mm-dd hh:mm:ss.ffffff becomes hh:mm:ss, other input becomes junk"""
-    return s[11:19]
-
 class Db:
     """Hold the database session info.  Only one instance possible?"""
 

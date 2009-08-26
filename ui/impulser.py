@@ -2,7 +2,7 @@
 
 import wx
 import wx.grid
-from db import Db
+from db import Db, DatetimeAsTimestring
 import weakref
 import re
 
@@ -28,6 +28,9 @@ class ActivityTable(wx.grid.PyGridTableBase):
                           wx.grid.GRID_VALUE_NUMBER,
                           wx.grid.GRID_VALUE_STRING,
                           ]
+        self.displayMappers = {}
+        self.displayMappers['scantime'] = lambda x: DatetimeAsTimestring(x)[0:8]
+        self.displayMappers['impulsetime']= lambda x: DatetimeAsTimestring(x)
 
     def Reload(self):
         if trace: print "reload"
@@ -66,7 +69,11 @@ class ActivityTable(wx.grid.PyGridTableBase):
     def GetValue(self, row, col):
         if row >= len(self.data):
             return ""
-        data = self.data[row][self.colMap[col]]
+        col_value_name = self.colMap[col]
+        col_display_mapper = lambda x: x
+        if self.displayMappers.has_key(col_value_name):
+            col_display_mapper = self.displayMappers[col_value_name]
+        data = col_display_mapper(self.data[row][col_value_name])
         if data is None:
             return ""
         else:

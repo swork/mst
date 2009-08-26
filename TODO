@@ -58,10 +58,10 @@ A [done] Honor impulses.erased, add to operations
 
 Impulser TODO
 
-A impulses.erased column, click on row to set it (and gray it out)
+B Red close button needs to hit confirmation dialog too
 
-B No need to see dates
-
-C Sizing: column widths follow contents, initial window width follows
+A [done] impulses.erased column, click on row to set it (and disappear row)
+B [done] No need to see dates
+C [done] Sizing: column widths follow contents, initial window width follows
 columns, subsequent column widths follow window width proportionately.
 
