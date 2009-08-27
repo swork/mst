@@ -2,7 +2,7 @@ Impulser accepts Click, serial line interrupt, timing system impulse,
 whatever and logs a finish time impulse. On receipt of update notice,
 adds recent activity to running update view.
 
-Recorder accepts bib numbers or notice placards ('999' etc.),
+Scanner accepts bib numbers or notice placards ('999' etc.),
 logs. IFF COMPLETELY UNAMBIGUOUS, MIGHT match next finish impulse and
 broadcast an update notice.
 
@@ -16,7 +16,9 @@ All TODO
 
 B Broadcast notifier for updates
 
-B Explore caching GetAttr results by row
+B Microseconds field in db should be called 'usecs', not 'ms'
+
+B Explore caching GetAttr results by row (exposed Python bug when tried once!)
 
 B Q for Charlie: finish corral handling of multi-lap competitors
 
@@ -57,10 +59,11 @@ B [done] No need to see dates
 
 Impulser TODO
 
-B Red close button needs to hit confirmation dialog too
-
 A [done] impulses.erased column, click on row to set it (and disappear row)
 B [done] No need to see dates
 C [done] Sizing: column widths follow contents, initial window width follows
 columns, subsequent column widths follow window width proportionately.
+A [done] Log entries to a local CSV for disaster recovery
+B [done] Red close button needs to hit confirmation dialog too
+
 

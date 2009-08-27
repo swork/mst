@@ -6,9 +6,9 @@ from ui.impulser import MainFrame
 from db import Db
 
 class MSTImpulserApp(wx.PySimpleApp):
-    def __init__(self, dbstring):
+    def __init__(self, dbstring, logfilename):
         wx.PySimpleApp.__init__(self)
-        self.db = Db(dbstring, echo=False)
+        self.db = Db(dbstring, logfilename, echo=False)
         self.frame = MainFrame(None, wx.ID_ANY, 'Generate Finish Impulses',
                                self.db)
 
@@ -25,14 +25,17 @@ def main(argv=None):
 
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "c:h", ["connect=","help"])
+            opts, args = getopt.getopt(argv[1:], "c:hl:", ["connect=","help","log="])
             dbstring = None
+            logfilename = None
             for o, a in opts:
                 if o in ("-c", "--connect"):
                     dbstring = a
                 elif o in ("-h", "--help"):
                     print_usage(argv[0])
                     return 2
+                elif o in ("-l", "--log"):
+                    logfilename = a
                 else:
                     assert getopt.GetoptError, "unhandled option %s" % o
         except getopt.GetoptError, msg:
@@ -40,7 +43,10 @@ def main(argv=None):
 
         if dbstring is None:
             dbstring = 'mysql://anonymous@localhost/test'
-        app = MSTImpulserApp(dbstring)
+        if logfilename is None:
+            logfilename = "./impulser_log.csv"
+
+        app = MSTImpulserApp(dbstring, logfilename)
         app.Reload()
         app.MainLoop()
         return 0

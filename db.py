@@ -49,11 +49,15 @@ class Db:
             return True
         return False
 
-    def __init__(self, dbstring, echo):
+    def __init__(self, dbstring, logfilename, echo):
+        self.logfilename = logfilename
         self.engine = create_engine(dbstring, echo=echo)
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
         Base.metadata.create_all(self.engine)
+
+    def WriteLogLine(self, logline):
+        open(self.logfilename, 'a').write("%s\n" % logline)
 
     class Entry(Base):
         """Registration info for an entrant"""
@@ -209,6 +213,8 @@ class Db:
                                values ('%s', %d)"""
                             % (impulseTime.isoformat(),
                                impulseTime.microsecond))
+        self.WriteLogLine(r'"recordImpulse","%s","%s"' % \
+                             (impulseTime.isoformat(), impulseTime.microsecond))
 
     def GetMatchTable(self):
         impulses_query = """select impulses.impulsetime,

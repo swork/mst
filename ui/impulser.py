@@ -200,6 +200,8 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
         self.Bind(wx.EVT_MENU, self.OnQuit, id=wx.ID_EXIT)
 
+        self.Bind(wx.EVT_CLOSE, self.OnQuit)
+
         self.grid = ActivityGrid(self, db)
         #grid.WriteText(u"Hello again!\nAnd how are you?\n")
 
@@ -230,14 +232,17 @@ class MainFrame(wx.Frame):
         dlg.Destroy()
 
     def OnQuit(self, evt):
+        closeme = False
         dlg = wx.MessageDialog(self, u"Quit: Are you sure?",
                                    "Quit",
                                    wx.YES_NO |
                                    wx.NO_DEFAULT | 
                                    wx.ICON_QUESTION)
         if dlg.ShowModal() == wx.ID_YES:
+            closeme = True
+        if closeme:
             dlg.Destroy()
-            self.Close(True)
+            self.Destroy()
 
     def UpdateStatusBar(self):
         self.SetStatusText("Hello.") # self.control.GetStatusBarText())
