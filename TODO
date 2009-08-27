@@ -18,8 +18,6 @@ B Broadcast notifier for updates
 
 B Microseconds field in db should be called 'usecs', not 'ms'
 
-B Explore caching GetAttr results by row (exposed Python bug when tried once!)
-
 B Q for Charlie: finish corral handling of multi-lap competitors
 
 C HD camera on start for bib verification, in case of questions?
@@ -32,6 +30,7 @@ A [Done] Db.Scan's backref is order_by=id -- what impact this? Should be
 "none" as multiple scans for the same impulse aren't possible (I
 think) as impulses.id is a ForeignKey constraint on Scan and a primary
 key (so unique) on Impulse. Check though...
+B [Done] Explore caching GetAttr results by row (exposed Python bug when tried!)
 
 
 Editor TODO
