@@ -52,6 +52,14 @@ class RowProxy(object):
                 return self.dict[i]
             except:
                 raise
+    def __setitem__(self, key, value):
+        try:
+            self.arr[key*2+1] = value
+        except TypeError:
+            try:
+                self.dict[key] = value
+            except:
+                raise
 
 class Db:
     """Hold the database session info.  Only one instance possible?"""
@@ -201,28 +209,32 @@ class Db:
 #    def OutOfSyncTimesList(self):
 
     def GetRecentImpulseActivityTable(self, numRows):
-        impulses = self.engine.execute("""select impulses.impulsetime,
-                                                 impulses.ms,
-                                                 scans.bib,
-                                                 impulses.id,
-                                                 scans.impulse,
-                                                 impulses.erased,
-                                                 scans.id as scans_id
-                                          from impulses
-                                             left outer join scans
-                                                 on scans.impulse = impulses.id
-                                          where impulses.erased is NULL
-                                          order by impulsetime desc,
-                                                   ms desc,
-                                                   impulses.id desc
-                                          limit %d""" % numRows)
+        impulses = self.engine.execute("""
+            select impulses.impulsetime,
+                   impulses.ms,
+                   scans.bib as scans_bib,
+                   impulses.id as impulses_id,
+                   scans.impulse,
+                   impulses.erased as impulses_erased,
+                   scans.id as scans_id
+            from impulses
+               left outer join scans
+                   on scans.impulse = impulses.id
+            where impulses.erased is NULL
+            order by impulsetime desc,
+                     ms desc,
+                     impulses.id desc
+            limit %d""" % numRows)
         impulses_results = impulses.fetchall()
         results = []
         for r in impulses_results:
             itime = r[0].replace(microsecond=r[1])
-            row = {  'impulseid': r[3], 'impulsetime': itime, 'bib': r[2],
-                     'competitor': '', 'erased': r[5], 'scanid': r[6] }
-            results.append(row)
+            results.append(RowProxy(['impulseid', r.impulses_id,
+                                     'impulsetime', itime,
+                                     'bib', r.scans_bib,
+                                     'competitor', '',
+                                     'erased', r.impulses_erased,
+                                     'scanid', r.scans_id]))
         if trace: print results
         return results
 
@@ -293,24 +305,26 @@ class Db:
                              (impulseTime.isoformat(), impulseTime.microsecond))
 
     def GetMatchTable(self):
-        impulses_query = """select impulses.impulsetime as impulses,
-                                   impulses.ms,
-                                   scans.bib,
-                                   scans.scantime,
-                                   impulses.id as impulses_id,
-                                   scans.id,
-                                   scans.impulse
-                            from impulses
-                                left outer join scans
-                                    on scans.impulse = impulses.id
-                            where impulses.erased is NULL
-                            order by impulsetime, impulses_id"""
-        others_query = """select scans.scantime,
-                                 scans.bib,
-                                 scans.id as scans_id
-                          from scans
-                          where scans.impulse is null
-                          order by scantime, scans_id"""
+        impulses_query = """
+            select impulses.impulsetime as impulses_impulsetime,
+                   impulses.ms as impulses_ms,
+                   scans.bib as scans_bib,
+                   scans.scantime as scans_scantime,
+                   impulses.id as impulses_id,
+                   scans.id as scans_id,
+                   scans.impulse as scans_impulse
+            from impulses
+                left outer join scans
+                    on scans.impulse = impulses.id
+            where impulses.erased is NULL
+            order by impulses_impulsetime, impulses_id"""
+        others_query = """
+            select scans.scantime as scans_scantime,
+                   scans.bib as scans_bib,
+                   scans.id as scans_id
+            from scans
+            where scans.impulse is null
+            order by scans_scantime, scans_id"""
 
         impulses = self.engine.execute(impulses_query)
         other_scans = self.engine.execute(others_query)
@@ -326,23 +340,23 @@ class Db:
         unmatchedscan_count = 0
 
         try:
-            ii, impulseresult = impulseresults_iterator.next()
+            ii, irow = impulseresults_iterator.next()
             impulse_count += 1
-            assert not self.IsFlagValue(impulseresult[2])
-            if not None is impulseresult[2]:
+            assert not self.IsFlagValue(irow.scans_bib)
+            if not None is irow.scans_bib:
                 bibscan_count += 1
-                if trace: print "0 bump bibscan for %s" % repr(impulseresult[2])
+                if trace: print "0 bump bibscan for %s" % repr(irow.scans_bib)
         except StopIteration:
             ii = -1
 
         try: 
-            si, otherscanresult = otherscanresults_iterator.next()
-            if not self.IsFlagValue(otherscanresult[1]):
+            si, srow = otherscanresults_iterator.next()
+            if not self.IsFlagValue(srow.scans_bib):
                 bibscan_count += 1
                 unmatchedscan_count += 1
                 if trace:
                     print "0 bump bibscan, unmatched for %d" %\
-                        otherscanresult[1]
+                        srow.scans_bib
         except StopIteration:
             si = -1
 
@@ -350,39 +364,38 @@ class Db:
         # impulseid or NULL, scanid or NULL)
         result = []
         while si != -1 or ii != -1:
-            impulseresult_impulsetime = \
-                impulseresult[0].replace(microsecond=impulseresult[1])
+            itime = irow.impulses_impulsetime.replace(microsecond=irow.impulses_ms)
             if (si == -1
-                or (impulseresult_impulsetime <= otherscanresult[0]
+                or (itime <= srow.scans_scantime
                     if ii != -1 else False)):
-                result.append({"impulsetime" : impulseresult_impulsetime,
-                               "bib"         : impulseresult[2],
-                               "scantime"    : impulseresult[3],
-                               "impulseid"   : impulseresult[4],
-                               "scanid"      : impulseresult[5]})
+                result.append(RowProxy(["impulsetime",itime,
+                                        "bib", irow.scans_bib,
+                                        "scantime",irow.scans_scantime,
+                                        "impulseid", irow.impulses_id,
+                                        "scanid", irow.scans_id]))
                 try:
-                    ii, impulseresult = impulseresults_iterator.next()
+                    ii, irow = impulseresults_iterator.next()
                     impulse_count += 1
-                    if self.IsFlagValue(impulseresult[2]):
+                    if self.IsFlagValue(irow.scans_bib):
                         inconsistent()
-                    elif not None is impulseresult[2]:
-                        if trace: print "bump bibscan for %d" % impulseresult[2]
+                    elif not None is irow.scans_bib:
+                        if trace: print "bump bibscan for %d" % irow.scans_bib
                         bibscan_count += 1
                 except StopIteration: 
                     ii = -1
             elif (ii == -1
-                  or (impulseresult_impulsetime > otherscanresult[0]
+                  or (itime > srow.scans_scantime
                       if si != -1 else False)):
                 result.append({"impulsetime" : None,
-                               "bib"         : otherscanresult[1],
-                               "scantime"    : otherscanresult[0],
+                               "bib"         : srow.scans_bib,
+                               "scantime"    : srow.scans_scantime,
                                "impulseid"   : None,
-                               "scanid"      : otherscanresult[2]})
+                               "scanid"      : srow.scans_id})
                 try:
-                    si, otherscanresult = otherscanresults_iterator.next()
-                    if not self.IsFlagValue(otherscanresult[1]):
-                        if trace: print "bump bibscan, umnatched for %d" %\
-                                otherscanresult[1]
+                    si, srow = otherscanresults_iterator.next()
+                    if not self.IsFlagValue(srow.scans_bib):
+                        if trace: print "bump bibscan, unmatched for %d" %\
+                                srow.scans_bib
                         bibscan_count += 1
                         unmatchedscan_count += 1
                 except StopIteration:
@@ -467,7 +480,7 @@ if __name__ == "__main__":
             print '.',
 
 #    db = Db('sqlite:///:memory:', echo=False)
-    db = Db('mysql://anonymous@localhost/test', echo=False)
+    db = Db('mysql://anonymous@localhost/test', "db-test", echo=False)
 
     LoadTestData(db)
     db.session.commit()
