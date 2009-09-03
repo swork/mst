@@ -40,6 +40,8 @@ Editor TODO
 
 A Disallow assigning across "empty corral" marker
 
+A All classes extend "object"
+
 B Context-menu items into regular menus too
 
 B Validations: no impulses.erased assigned to scans, no impulses

@@ -16,7 +16,7 @@ class ActivityGrid(wx.grid.Grid):
     def __init__(self, parent, db):
         wx.grid.Grid.__init__(self, parent, -1)
         self.parent = parent
-        table = ActivityTable(db, self) # onlySinceEmpty=True)
+        table = ActivityTable(db, self, onlySinceEmpty=True)
         self.SetTable(table, True)
         self.EnableEditing(False)
         self.SetRowLabelSize(40)

@@ -32,6 +32,27 @@ def ConvertToDatetime(timeValue):
 def DatetimeAsTimestring(dt):
     return dt.strftime("%H:%M:%S.%f")
 
+class RowProxy(object):
+    def __init__(self, arr):
+        self.arr = arr
+        self.dict = {}
+        for i in range(0, len(arr), 2):
+            self.dict[arr[i]] = arr[i+1]
+    def __repr__(self):
+        return "<Db.RowProxy: %s>" % self.arr.__repr__()
+    def __getattr__(self, key):
+        if self.dict.has_key(key):
+            return self.dict[key]
+        return self.getattr(key)
+    def __getitem__(self, i):
+        try:
+            return self.arr[i*2+1]
+        except TypeError:
+            try:
+                return self.dict[i]
+            except:
+                raise
+
 class Db:
     """Hold the database session info.  Only one instance possible?"""
 
@@ -205,30 +226,59 @@ class Db:
         if trace: print results
         return results
 
-    def GetImpulseActivityTableSinceEmpty(self, numRows):
+    def GetImpulseActivityTableSinceEmpty(self):
         empty = self.engine.execute("""
             select max(scantime) as lastTime
             from scans
             where bib=%s""" % Db.FLAG_CORRAL_EMPTY).fetchone()
-        where = ''
+        where_impulse = ''
         if not None is empty.lastTime:
-            where = "where impulsetime > '%s'" % empty.lastTime
-        impulses_results = self.engine.execute("""
+            where_impulse = "where impulsetime >= '%s'" % empty.lastTime
+        impulses_res = self.engine.execute("""
             select * from impulses %s
-            order by impulsetime desc""" % where).fetchall()
+            order by impulsetime asc""" % where_impulse).fetchall()
+        where_scan = ''
         if not None is empty.lastTime:
-            where = "where scantime > '%s'" % empty.lastTime
-        scans_results = self.engine.execute("""
+            where_scan = "where scantime >= '%s'" % empty.lastTime
+        scans_res = self.engine.execute("""
             select * from scans %s
-            order by scantime desc""" % where).fetchall()
+            order by scantime asc""" % where_scan).fetchall()
 
         results = []
-#        for r in impulses_results:
-#            itime = r.impulsetime.replace(microsecond=r.ms)
-#           row = {  'impulseid': r.id, 'impulsetime': itime, 'bib': r[2],
-#                     'competitor': '', 'erased': r[5], 'scanid': r[6] }
-#            results.append(row)
-#        if trace: print results
+        irow = impulses_res.pop() if len(impulses_res) > 0 else None
+        srow = scans_res.pop()    if len(scans_res) > 0    else None
+        while True:
+            if srow:
+                if (irow and irow.impulsetime > srow.scantime
+                    or irow is None):
+                    results.append(RowProxy(['impulseid', None,
+                                             'impulsetime', None,
+                                             'bib', srow.bib,
+                                             'competitor', '',
+                                             'scanid', srow.id]))
+                    srow = scans_res.pop() if len(scans_res) > 0 else None
+                elif irow:
+                    itime = irow.impulsetime.replace(microsecond=irow.ms)
+                    results.append(RowProxy(['impulseid', irow.id,
+                                             'impulsetime', itime,
+                                             'bib', srow.bib,
+                                             'competitor', '',
+                                             'scanid', srow.id]))
+                    irow = impulses_res.pop() if len(impulses_res) > 0 else None
+                    srow = scans_res.pop()    if len(scans_res)    > 0 else None
+                else:
+                    break
+            elif irow:
+                itime = irow.impulsetime.replace(microsecond=irow.ms)
+                results.append(RowProxy(['impulseid', irow.id,
+                                         'impulsetime', itime,
+                                         'bib', None,
+                                         'competitor', None,
+                                         'scanid', None]))
+                irow = impulses_res.pop() if len(impulses_res) > 0 else None
+            else:
+                break
+        if trace: print results
         return results
 
     def RecordImpulse(self, impulseTime=None):
