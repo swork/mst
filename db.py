@@ -205,6 +205,32 @@ class Db:
         if trace: print results
         return results
 
+    def GetImpulseActivityTableSinceEmpty(self, numRows):
+        empty = self.engine.execute("""
+            select max(scantime) as lastTime
+            from scans
+            where bib=%s""" % Db.FLAG_CORRAL_EMPTY).fetchone()
+        where = ''
+        if not None is empty.lastTime:
+            where = "where impulsetime > '%s'" % empty.lastTime
+        impulses_results = self.engine.execute("""
+            select * from impulses %s
+            order by impulsetime desc""" % where).fetchall()
+        if not None is empty.lastTime:
+            where = "where scantime > '%s'" % empty.lastTime
+        scans_results = self.engine.execute("""
+            select * from scans %s
+            order by scantime desc""" % where).fetchall()
+
+        results = []
+#        for r in impulses_results:
+#            itime = r.impulsetime.replace(microsecond=r.ms)
+#           row = {  'impulseid': r.id, 'impulsetime': itime, 'bib': r[2],
+#                     'competitor': '', 'erased': r[5], 'scanid': r[6] }
+#            results.append(row)
+#        if trace: print results
+        return results
+
     def RecordImpulse(self, impulseTime=None):
         if impulseTime is None:
             impulseTime = datetime.now()
@@ -217,7 +243,7 @@ class Db:
                              (impulseTime.isoformat(), impulseTime.microsecond))
 
     def GetMatchTable(self):
-        impulses_query = """select impulses.impulsetime,
+        impulses_query = """select impulses.impulsetime as impulses,
                                    impulses.ms,
                                    scans.bib,
                                    scans.scantime,

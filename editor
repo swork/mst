@@ -15,7 +15,7 @@ from db import Db
 class MSTEditorApp(wx.PySimpleApp):
     def __init__(self, dbstring):
         wx.PySimpleApp.__init__(self)
-        self.db = Db(dbstring, echo=False)
+        self.db = Db(dbstring, logfilename="editor.log", echo=False)
         self.frame = MainFrame(None, wx.ID_ANY, 'Edit Timing', self.db)
         self.Bind(wx.EVT_MENU, self.OnMakeEasys, id=MainFrame.ID_EASY)
 

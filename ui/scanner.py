@@ -2,6 +2,9 @@
 
 import wx
 import wx.grid
+from db import Db, DatetimeAsTimestring
+import weakref
+import re
 from ui.activitytable import ActivityTable
 
 trace = True
@@ -13,35 +16,12 @@ class ActivityGrid(wx.grid.Grid):
     def __init__(self, parent, db):
         wx.grid.Grid.__init__(self, parent, -1)
         self.parent = parent
-        table = ActivityTable(db, self)
+        table = ActivityTable(db, self) # onlySinceEmpty=True)
         self.SetTable(table, True)
         self.EnableEditing(False)
         self.SetRowLabelSize(40)
         self.SetMargins(0,0)
         self.EnableDragRowSize(False)
-        wx.grid.EVT_GRID_CELL_RIGHT_CLICK(self,self.OnGridRightClick)
-
-    def OnGridRightClick(self, evt):
-        print "right click %d,%d" % (evt.GetRow(), evt.GetCol())
-        self.ctxRow = evt.GetRow() # for handlers
-        self.ctxCol = evt.GetCol()
-        self.SetGridCursor(self.ctxRow, self.ctxCol)
-
-        # only bind events once; could have done this way up top.
-        if not hasattr(self, "ctxEraseImpulse"):
-            self.ctxEraseImpulse = wx.NewId()
-            self.Bind(wx.EVT_MENU, self.OnCtxEraseImpulse,
-                      id=self.ctxEraseImpulse)
-
-        menu = wx.Menu()
-        item = wx.MenuItem(menu, self.ctxEraseImpulse, "Erase This Impulse")
-        menu.AppendItem(item)
-
-        self.PopupMenu(menu)
-        menu.Destroy()
-
-    def OnCtxEraseImpulse(self, evt):
-        self.GetTable().EraseImpulse(self.ctxRow)
 
     def GetColumnWidthsSum(self):
         n = self.GetNumberCols()
@@ -88,29 +68,30 @@ class MainFrame(wx.Frame):
 
         self.grid = ActivityGrid(self, db)
 
-        reportButton = wx.Button(self)
-        reportButton.SetDefault()
-        reportButton.SetLabel("Click Here to record a finish impulse")
-        self.Bind(wx.EVT_BUTTON, self.RecordImpulse)
+        self.bibField = wx.TextCtrl(self)
+#         self.bibField.SetDefault()
+#        self.Bind(wx.EVT_TEXT_FIELD_CHANGED_FAKE, self.RecordBib)
+#         reportButton = wx.Button(self)
+#         reportButton.SetDefault()
+#         reportButton.SetLabel("Click Here to record a finish impulse")
+#         self.Bind(wx.EVT_BUTTON, self.RecordImpulse)
 
         boxSizer = wx.BoxSizer(wx.VERTICAL)
         boxSizer.Add(self.grid, 100, wx.EXPAND)
-        boxSizer.Add(reportButton, 0, wx.EXPAND)
+        boxSizer.Add(self.bibField, 0, wx.EXPAND)
         self.SetSizer(boxSizer)
 
         self.Show(True)
 
-    def RecordImpulse(self, id):
-        self.db.RecordImpulse()
-        self.click_counter += 1
-        self.SetStatusText("Click %d" % self.click_counter)
+    def RecordBib(self, id):
+        self.db.RecordBib()
         self.Refresh()
 
     def Refresh(self):
         self.grid.Reload()
 
     def OnAbout(self, evt):
-        dlg = wx.MessageDialog(self, "Record Finish Impulses", "About", wx.OK)
+        dlg = wx.MessageDialog(self, "Record Bib Scans", "About", wx.OK)
         dlg.ShowModal()
         dlg.Destroy()
 
