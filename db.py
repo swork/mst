@@ -33,6 +33,7 @@ def DatetimeAsTimestring(dt):
     return dt.strftime("%H:%M:%S.%f")
 
 class RowProxy(object):
+    """An "ordered dictionary" to emulate SQLAlchemy's RowProxy object."""
     def __init__(self, arr):
         self.arr = arr
         self.dict = {}
@@ -57,7 +58,10 @@ class RowProxy(object):
             self.arr[key*2+1] = value
         except TypeError:
             try:
-                self.dict[key] = value
+                if self.dict.has_key(key):
+                    self.dict[key] = value
+                else:
+                    raise AttributeError, key
             except:
                 raise
 
