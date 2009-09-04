@@ -10,16 +10,30 @@ def alert():
     wx.Sound.PlaySound("alert.wav", wx.SOUND_ASYNC)
 
 class ActivityGrid(wx.grid.Grid):
-    def __init__(self, parent, db):
+    def __init__(self, parent, db, button_id):
         wx.grid.Grid.__init__(self, parent, -1)
         self.parent = parent
         table = ActivityTable(db, self)
+        self.button_id = button_id
         self.SetTable(table, True)
         self.EnableEditing(False)
         self.SetRowLabelSize(40)
         self.SetMargins(0,0)
         self.EnableDragRowSize(False)
         wx.grid.EVT_GRID_CELL_RIGHT_CLICK(self,self.OnGridRightClick)
+        #self.SetCanFocus(false) # not implemented in this framework port
+
+    def AcceptsFocus(self):
+        return False            # no effect seen
+    def AcceptsFocusFromKeyboard(self):
+        return False            # no effect seen
+    def AcceptsFocusRecursively(self):
+        return False            # no effect seen
+    def SetFocus(self):
+        button = self.parent.FindWindow(self.button_id)
+        print "SF found button ", button
+        if button:
+            button.SetFocus()   # no effect seen
 
     def OnGridRightClick(self, evt):
         print "right click %d,%d" % (evt.GetRow(), evt.GetCol())
@@ -86,9 +100,10 @@ class MainFrame(wx.Frame):
 
         self.Bind(wx.EVT_CLOSE, self.OnQuit)
 
-        self.grid = ActivityGrid(self, db)
+        button_id = wx.NewId()
+        reportButton = wx.Button(self, id=button_id)
+        self.grid = ActivityGrid(self, db, button_id)
 
-        reportButton = wx.Button(self)
         reportButton.SetDefault()
         reportButton.SetLabel("Click Here to record a finish impulse")
         self.Bind(wx.EVT_BUTTON, self.RecordImpulse)

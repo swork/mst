@@ -75,8 +75,11 @@ A [done] Log entries to a local CSV for disaster recovery
 B [done] Red close button needs to hit confirmation dialog too
 
 
-Scaner TODO
+Scanner TODO
+
+AA Assign new bibs to EARLIEST impulse since empty, not latest...
 
 A Explore "RegisterHotKey" as a way to catch every possible bibscan
 key when app is running
 
+B Catch Enter on empty field
