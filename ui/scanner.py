@@ -2,10 +2,8 @@
 
 import wx
 import wx.grid
-from db import Db, DatetimeAsTimestring
-import weakref
-import re
 from ui.activitytable import ActivityTable
+import notify
 
 trace = True
 
@@ -38,15 +36,9 @@ class BibTextCtrl(wx.TextCtrl):
         self.SetInsertionPoint(ip)
     def OnTextEnter(self, evt):
         s = evt.GetString()
-        print s
-        self.recordFn(s)
-        self.Clear()
-    def on_text(self, event):
-        event.Skip()
-        selection = self.GetSelection()
-        value = self.GetValue().upper()
-        self.ChangeValue(value)
-        self.SetSelection(*selection)
+        if len(s) > 0:
+            self.recordFn(s)
+            self.Clear()
 
 class ActivityGrid(wx.grid.Grid):
     def __init__(self, parent, db):
@@ -110,18 +102,34 @@ class MainFrame(wx.Frame):
 
         boxSizer = wx.BoxSizer(wx.VERTICAL)
         boxSizer.Add(self.grid, 100, wx.EXPAND)
-        boxSizer.Add(self.bibField, 0, wx.EXPAND)
+        innerSizer = wx.BoxSizer(wx.HORIZONTAL)
+        innerSizer.Add(wx.StaticText(self, wx.ALIGN_LEFT,
+                                     "  Record bib after finish: "))
+        innerSizer.Add(self.bibField, 0, wx.EXPAND)
+        boxSizer.Add(innerSizer, 0, wx.EXPAND)
         self.SetSizer(boxSizer)
+
+        self.hearer = notify.Hear(self)
+        self.Bind(notify.EVT_UPDATE_INFO, self.OnHeardNotify)
 
         self.Show(True)
         self.bibField.SetFocus()
 
+    def __del__(self):
+        self.hearer.keepGoing = False
+
     def RecordBib(self, bibNumber):
-        self.db.RecordBib(bibNumber)
-        self.Refresh()
+        if not None is bibNumber and len(bibNumber) > 0:
+            self.db.RecordBib(bibNumber)
+            self.Refresh()
 
     def Refresh(self):
         self.grid.Reload()
+
+    def OnHeardNotify(self, evt):
+        print "Heard msg:%s mine:" % evt.message, evt.likelyFromMe
+        if not evt.likelyFromMe:
+            self.Refresh()
 
     def OnAbout(self, evt):
         dlg = wx.MessageDialog(self, "Record Bib Scans", "About", wx.OK)
@@ -143,16 +151,3 @@ class MainFrame(wx.Frame):
 
     def UpdateStatusBar(self):
         self.SetStatusText("Hello.") # self.control.GetStatusBarText())
-
-if __name__ == "__main__":
-    db = Db('sqlite:///:memory:', echo=False)
-    db.LoadTestData()
-    db.session.commit()
-
-#    set = { "impulse": 2 }
-#    db.session.query(Db.Scan).filter("bib = 101").update(set)
-#    db.session.commit()
-
-    app = MSTEditorApp()
-    app.MainLoop()
-

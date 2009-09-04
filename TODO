@@ -46,7 +46,8 @@ B Context-menu items into regular menus too
 
 B Validations: no impulses.erased assigned to scans, no impulses
 assigned to scans, no scans unassigned, ID multiple impulses
-on one bib (laps), no impulses assigned to earlier scans, more? 
+on one bib (laps), no impulses assigned to earlier scans, impulsetime
+and scantime too far apart to be real, more? 
 
 C Save, track needs save; not sure SetCellValue works in all (any)
 cases. See editor.py SaveNewValue for eg
@@ -77,9 +78,24 @@ B [done] Red close button needs to hit confirmation dialog too
 
 Scanner TODO
 
-AA Assign new bibs to EARLIEST impulse since empty, not latest...
+AA Assign new bibs to EARLIEST impulse since empty, not latest
 
-A Explore "RegisterHotKey" as a way to catch every possible bibscan
+AA Record assignments on EMPTY scan
+
+AA Don't assign anything (unassign) if error flag scanned
+
+A BC notify on change
+
+B Delete key on bib number to kill it
+
+B Keystrokes in grid go to text field
+
+C Explore "RegisterHotKey" as a way to catch every possible bibscan
 key when app is running
 
-B Catch Enter on empty field
+C Truncate impulsetime fractional seconds, by option
+
+
+A [done] Don't assign if scanned > 5m after impulse
+B [done] Catch Enter on empty field
+B [done] Label on text field

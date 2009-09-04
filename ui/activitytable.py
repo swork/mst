@@ -32,7 +32,7 @@ class ActivityTable(wx.grid.PyGridTableBase):
         else:
             self.data = self.db.GetRecentImpulseActivityTable(self.WantNumberRows())
         self.attrcache = {}
-        if trace: print self.data
+#        if trace: print self.data
         self.ResetView()
 
     def GetGrid(self):
@@ -59,7 +59,8 @@ class ActivityTable(wx.grid.PyGridTableBase):
         return self.colLabels[col]
 
     def GetRowLabelValue(self, row):
-        return self.data[row]['impulseid']
+        iid = self.data[row].impulseid
+        return iid if not None is iid else self.data[row].scanid
 
     def GetValue(self, row, col):
         if row >= len(self.data):

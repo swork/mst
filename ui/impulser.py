@@ -3,6 +3,7 @@
 import wx
 import wx.grid
 from ui.activitytable import ActivityTable
+import notify
 
 trace = True
 
@@ -113,7 +114,14 @@ class MainFrame(wx.Frame):
         boxSizer.Add(reportButton, 0, wx.EXPAND)
         self.SetSizer(boxSizer)
 
+        self.hearer = notify.Hear(self)
+        self.Bind(notify.EVT_UPDATE_INFO, self.OnHeardNotify)
+
         self.Show(True)
+        reportButton.SetFocus()
+
+    def __del__(self):
+        self.hearer.keepGoing = False
 
     def RecordImpulse(self, id):
         self.db.RecordImpulse()
@@ -123,6 +131,11 @@ class MainFrame(wx.Frame):
 
     def Refresh(self):
         self.grid.Reload()
+
+    def OnHeardNotify(self, evt):
+        print "Heard msg:%s mine:" % evt.message, evt.likelyFromMe
+        if not evt.likelyFromMe:
+            self.Refresh()
 
     def OnAbout(self, evt):
         dlg = wx.MessageDialog(self, "Record Finish Impulses", "About", wx.OK)

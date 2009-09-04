@@ -6,6 +6,8 @@ from sqlalchemy.databases import mysql
 from sqlalchemy import sql
 from datetime import datetime
 import types, re
+from copy import copy
+import notify
 
 trace = False
 
@@ -88,6 +90,7 @@ class Db(object):
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
         Base.metadata.create_all(self.engine)
+        self.notifier = notify.Say()
 
     def WriteLogLine(self, logline):
         open(self.logfilename, 'a').write("%s\n" % logline)
@@ -241,6 +244,46 @@ class Db(object):
                                      'scanid', r.scans_id]))
         return results
 
+    def impulseActivityTableSinceEmptyWithError(self, impulses_res, scans_res):
+        results = []
+        impulses_res.reverse()
+        scans_res.reverse()
+        print "in i:%d s:%d" % (len(impulses_res), len(scans_res))
+        irow = impulses_res.pop() if len(impulses_res) > 0 else None
+        srow = scans_res.pop()    if len(scans_res) > 0    else None
+        while True:
+            doScan = False
+            doImpulse = False
+            if srow and irow:
+                if srow.scantime > irow.impulsetime:
+                    doScan = True
+                else:
+                    doImpulse = True
+            elif srow:
+                doScan = True
+            elif irow:
+                doImpulse = True
+            else:
+                break
+            if doScan:
+                results.insert(0, RowProxy(['impulseid', None,
+                                            'impulsetime', None,
+                                            'bib', srow.bib,
+                                            'competitor', '',
+                                            'scanid', srow.id]))
+                srow = scans_res.pop() if len(scans_res) > 0 else None
+            elif doImpulse:
+                itime = irow.impulsetime.replace(microsecond=irow.ms)
+                results.insert(0, RowProxy(['impulseid', irow.id,
+                                            'impulsetime', itime,
+                                            'bib', None,
+                                            'competitor', None,
+                                            'scanid', None]))
+                irow = impulses_res.pop() if len(impulses_res) > 0 else None
+            else:
+                inconsistent()
+        return results
+
     def GetImpulseActivityTableSinceEmpty(self):
         empty = self.engine.execute("""
             select max(scantime) as lastTime
@@ -251,40 +294,57 @@ class Db(object):
             where_impulse = "where impulsetime >= '%s'" % empty.lastTime
         impulses_res = self.engine.execute("""
             select * from impulses %s
-            order by impulsetime asc, ms asc, id asc"""
+            order by impulsetime desc, ms desc, id desc"""
                                            % where_impulse).fetchall()
+        iorig = copy(impulses_res)
         where_scan = ''
         if not None is empty.lastTime:
-            where_scan = "where scantime >= '%s'" % empty.lastTime
+            where_scan = ("where bib != %s and scantime >= '%s'"
+                          % (Db.FLAG_CORRAL_EMPTY, empty.lastTime))
         scans_res = self.engine.execute("""
             select * from scans %s
-            order by scantime asc""" % where_scan).fetchall()
+            order by scantime desc""" % where_scan).fetchall()
+        sorig = copy(scans_res)
 
         results = []
         irow = impulses_res.pop() if len(impulses_res) > 0 else None
         srow = scans_res.pop()    if len(scans_res) > 0    else None
         while True:
-            if srow:
-                if (irow and irow.impulsetime > srow.scantime
-                    or irow is None):
-                    results.append(RowProxy(['impulseid', None,
-                                             'impulsetime', None,
-                                             'bib', srow.bib,
-                                             'competitor', '',
-                                             'scanid', srow.id]))
-                    srow = scans_res.pop() if len(scans_res) > 0 else None
-                elif irow:
-                    itime = irow.impulsetime.replace(microsecond=irow.ms)
-                    results.append(RowProxy(['impulseid', irow.id,
-                                             'impulsetime', itime,
-                                             'bib', srow.bib,
-                                             'competitor', '',
-                                             'scanid', srow.id]))
-                    irow = impulses_res.pop() if len(impulses_res) > 0 else None
-                    srow = scans_res.pop()    if len(scans_res)    > 0 else None
+            if srow and srow.bib == Db.FLAG_ERROR:
+                return self.impulseActivityTableSinceEmptyWithError(iorig,sorig)
+            doScan = False
+            doImpulse = False
+            doMatch = False
+            if irow and srow:
+                diff = srow.scantime - irow.impulsetime
+                if (irow.impulsetime < srow.scantime
+                    and diff.days == 0 and diff.seconds < 5*60):
+                    doMatch = True
                 else:
-                    break
+                    doImpulse = True
             elif irow:
+                doImpulse = True
+            elif srow:
+                doScan = True
+            else:
+                break;
+            if doMatch:
+                itime = irow.impulsetime.replace(microsecond=irow.ms)
+                results.append(RowProxy(['impulseid', irow.id,
+                                         'impulsetime', itime,
+                                         'bib', srow.bib,
+                                         'competitor', '',
+                                         'scanid', srow.id]))
+                irow = impulses_res.pop() if len(impulses_res) > 0 else None
+                srow = scans_res.pop()    if len(scans_res)    > 0 else None
+            elif doScan:
+                results.append(RowProxy(['impulseid', None,
+                                         'impulsetime', None,
+                                         'bib', srow.bib,
+                                         'competitor', '',
+                                         'scanid', srow.id]))
+                srow = scans_res.pop() if len(scans_res) > 0 else None
+            elif doImpulse:
                 itime = irow.impulsetime.replace(microsecond=irow.ms)
                 results.append(RowProxy(['impulseid', irow.id,
                                          'impulsetime', itime,
@@ -293,6 +353,7 @@ class Db(object):
                                          'scanid', None]))
                 irow = impulses_res.pop() if len(impulses_res) > 0 else None
             else:
+                inconsistent()
                 break
         return results
 
@@ -306,6 +367,7 @@ class Db(object):
                                impulseTime.microsecond))
         self.WriteLogLine(r'"recordImpulse","%s","%s"' % \
                              (impulseTime.isoformat(), impulseTime.microsecond))
+        self.notifier.NotifyAll()
 
     def RecordBib(self, bib):
         if trace: print "recordbib:%d" % bib
@@ -314,6 +376,7 @@ class Db(object):
             insert into scans (scantime, bib)
             values ('%s', %s)""" % (scantime, bib))
         self.WriteLogLine(r'"recordBib","%s","%s"' % (scantime, bib))
+        self.notifier.NotifyAll()
 
     def GetMatchTable(self):
         impulses_query = """
@@ -435,6 +498,7 @@ class Db(object):
             return False
         set = { 'impulse': impulseid }
         self.session.query(Db.Scan).filter("id = %s" % scanid).update(set)
+        self.notifier.NotifyAll()
         return True
 
     def AssignImpulseToScanByIndices(self, tableresults, impulserow, scanrow):
@@ -481,6 +545,7 @@ class Db(object):
         scanid = tableresults[row]['scanid']
         set = { 'impulse': None }
         self.session.query(Db.Scan).filter("id = %s" % scanid).update(set)
+        self.notifier.NotifyAll()
         del(tableresults[:])    # now caller must reload
 
 #     def DuplicateImpulseByID(self, tablerow):
@@ -493,6 +558,7 @@ class Db(object):
                                set erased='%s'
                                where id=%s""" % (datetime.now().isoformat(),
                                                  impulseid))
+        self.notifier.NotifyAll()
 
     def Save(self):
         db.session.commit()
