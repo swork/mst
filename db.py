@@ -32,6 +32,15 @@ def ConvertToDatetime(timeValue):
 def DatetimeAsTimestring(dt):
     return dt.strftime("%H:%M:%S.%f")
 
+def IsFlagValue(bibnumber):
+    if bibnumber is None:
+        return False
+    if (bibnumber == Db.FLAG_CORRAL_EMPTY
+        or bibnumber == Db.FLAG_ERROR
+        or bibnumber == Db.FLAG_DONT_ASSIGN):
+        return True
+    return False
+
 class RowProxy(object):
     """An "ordered dictionary" to emulate SQLAlchemy's RowProxy object."""
     def __init__(self, arr):
@@ -65,22 +74,13 @@ class RowProxy(object):
             except:
                 raise
 
-class Db:
+class Db(object):
     """Hold the database session info.  Only one instance possible?"""
 
     # Special "bib" numbers
     FLAG_CORRAL_EMPTY = 999
     FLAG_ERROR = 998
     FLAG_DONT_ASSIGN = 0
-
-    def IsFlagValue(self, bibnumber): # s.b. class-static member fn
-        if bibnumber is None:
-            return False
-        if (bibnumber == Db.FLAG_CORRAL_EMPTY
-            or bibnumber == Db.FLAG_ERROR
-            or bibnumber == Db.FLAG_DONT_ASSIGN):
-            return True
-        return False
 
     def __init__(self, dbstring, logfilename, echo):
         self.logfilename = logfilename
@@ -239,7 +239,6 @@ class Db:
                                      'competitor', '',
                                      'erased', r.impulses_erased,
                                      'scanid', r.scans_id]))
-        if trace: print results
         return results
 
     def GetImpulseActivityTableSinceEmpty(self):
@@ -252,7 +251,8 @@ class Db:
             where_impulse = "where impulsetime >= '%s'" % empty.lastTime
         impulses_res = self.engine.execute("""
             select * from impulses %s
-            order by impulsetime asc""" % where_impulse).fetchall()
+            order by impulsetime asc, ms asc, id asc"""
+                                           % where_impulse).fetchall()
         where_scan = ''
         if not None is empty.lastTime:
             where_scan = "where scantime >= '%s'" % empty.lastTime
@@ -294,7 +294,6 @@ class Db:
                 irow = impulses_res.pop() if len(impulses_res) > 0 else None
             else:
                 break
-        if trace: print results
         return results
 
     def RecordImpulse(self, impulseTime=None):
@@ -307,6 +306,14 @@ class Db:
                                impulseTime.microsecond))
         self.WriteLogLine(r'"recordImpulse","%s","%s"' % \
                              (impulseTime.isoformat(), impulseTime.microsecond))
+
+    def RecordBib(self, bib):
+        if trace: print "recordbib:%d" % bib
+        scantime = datetime.now()
+        self.engine.execute("""
+            insert into scans (scantime, bib)
+            values ('%s', %s)""" % (scantime, bib))
+        self.WriteLogLine(r'"recordBib","%s","%s"' % (scantime, bib))
 
     def GetMatchTable(self):
         impulses_query = """
@@ -321,7 +328,7 @@ class Db:
                 left outer join scans
                     on scans.impulse = impulses.id
             where impulses.erased is NULL
-            order by impulses_impulsetime, impulses_id"""
+            order by impulses_impulsetime, impulses_ms, impulses_id"""
         others_query = """
             select scans.scantime as scans_scantime,
                    scans.bib as scans_bib,
@@ -346,7 +353,7 @@ class Db:
         try:
             ii, irow = impulseresults_iterator.next()
             impulse_count += 1
-            assert not self.IsFlagValue(irow.scans_bib)
+            assert not IsFlagValue(irow.scans_bib)
             if not None is irow.scans_bib:
                 bibscan_count += 1
                 if trace: print "0 bump bibscan for %s" % repr(irow.scans_bib)
@@ -355,7 +362,7 @@ class Db:
 
         try: 
             si, srow = otherscanresults_iterator.next()
-            if not self.IsFlagValue(srow.scans_bib):
+            if not IsFlagValue(srow.scans_bib):
                 bibscan_count += 1
                 unmatchedscan_count += 1
                 if trace:
@@ -380,7 +387,7 @@ class Db:
                 try:
                     ii, irow = impulseresults_iterator.next()
                     impulse_count += 1
-                    if self.IsFlagValue(irow.scans_bib):
+                    if IsFlagValue(irow.scans_bib):
                         inconsistent()
                     elif not None is irow.scans_bib:
                         if trace: print "bump bibscan for %d" % irow.scans_bib
@@ -390,14 +397,14 @@ class Db:
             elif (ii == -1
                   or (itime > srow.scans_scantime
                       if si != -1 else False)):
-                result.append({"impulsetime" : None,
-                               "bib"         : srow.scans_bib,
-                               "scantime"    : srow.scans_scantime,
-                               "impulseid"   : None,
-                               "scanid"      : srow.scans_id})
+                result.append(RowProxy(["impulsetime", None,
+                                        "bib", srow.scans_bib,
+                                        "scantime", srow.scans_scantime,
+                                        "impulseid", None, 
+                                        "scanid", srow.scans_id]))
                 try:
                     si, srow = otherscanresults_iterator.next()
-                    if not self.IsFlagValue(srow.scans_bib):
+                    if not IsFlagValue(srow.scans_bib):
                         if trace: print "bump bibscan, unmatched for %d" %\
                                 srow.scans_bib
                         bibscan_count += 1
@@ -406,18 +413,69 @@ class Db:
                     si = -1
         return (result, impulse_count, bibscan_count, unmatchedscan_count)
 
-    def AssignImpulseToScanByIDs(self, tableresults, impulserow, scanrow):
-        """tableresults is result from GetMatchTable above.  Glue a scan
-        to an impulse in the database and adjust tableresults to match."""
-        impulseid = tableresults[impulserow]['impulseid']
-        scanid = tableresults[scanrow]['scanid']
+    def AssignImpulseToScanByRecordIDs(self, impulseid, scanid):
+        """Glue a scan to an impulse in the database."""
+
+        irow = self.engine.execute("select * from impulses where id = %d"
+                                   % impulseid).fetchone()
+        srow = self.engine.execute("select * from scans where id = %d"
+                                   % scanid).fetchone()
+
+        # Don't assign across a time when the corral was empty.
+        itime = irow.impulsetime.replace(microsecond=irow.ms)
+        stime = srow.scantime
+        empties = self.engine.execute("""
+            select bib 
+            from scans 
+            where bib = %d
+              and scans.scantime > '%s'
+              and scans.scantime < '%s'""" % (Db.FLAG_CORRAL_EMPTY,
+                                              itime, stime)).fetchall()
+        if len(empties) > 0:
+            return False
         set = { 'impulse': impulseid }
         self.session.query(Db.Scan).filter("id = %s" % scanid).update(set)
-        tableresults[impulserow]['bib'] = tableresults[scanrow]['bib']
-        tableresults[impulserow]['scantime'] = tableresults[scanrow]['scantime']
-        tableresults[impulserow]['scanid'] = scanid
-        tableresults.pop(scanrow)
-        if trace: print "Popped row %d, %d left" % (scanrow, len(tableresults))
+        return True
+
+    def AssignImpulseToScanByIndices(self, tableresults, impulserow, scanrow):
+        """tableresults is result from GetMatchTable above.  Try to
+        assign a scan to an impulse; if it works, adjust tableresults
+        to match."""
+
+        # Table is sorted by time. Impulse can't come after scan.
+        if impulserow >= scanrow:
+            return False
+
+        # impulserow must contain an impulse.
+        impulsetime = tableresults[impulserow].impulsetime
+        if impulsetime is None:
+            return False
+
+        # impulserow must not contain a bib number (by row type or assignment)
+        if not None is tableresults[impulserow].bib:
+            return False
+
+        # scanrow must contain a non-flag bib number.
+        bib = tableresults[scanrow].bib
+        if bib is None:
+            return False
+        if IsFlagValue(bib):
+            return False
+
+        # scanrow must not contain an impulse time (by row type or assignment)
+        if not None is tableresults[scanrow].impulsetime:
+            return False
+        
+        impulseid = tableresults[impulserow]['impulseid']
+        scanid = tableresults[scanrow]['scanid']
+
+        result = self.AssignImpulseToScanByRecordIDs(impulseid, scanid)
+        if result:
+            tableresults[impulserow]['bib'] = bib
+            tableresults[impulserow]['scantime']= tableresults[scanrow].scantime
+            tableresults[impulserow]['scanid'] = scanid
+            tableresults.pop(scanrow)
+        return result
 
     def UnassignImpulseByRow(self, tableresults, row):
         scanid = tableresults[row]['scanid']

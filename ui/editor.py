@@ -41,7 +41,7 @@ class MatchupTable(wx.grid.PyGridTableBase):
          self.impulseCount, 
          self.bibscanCount,
          self.bibscanUnmatchedCount) = self.db.GetMatchTable()
-        print self.data
+        if trace: print "Done."
         self.ResetView()
 
     def GetGrid(self):
@@ -137,31 +137,13 @@ class MatchupTable(wx.grid.PyGridTableBase):
 
     def AssociateScanWithImpulseByRows(self, top, bot):
         """Mark a finish impulse as belonging to a particular bib."""
-        if trace: print "ASWIR(top=%d, bot=%d): tbib=%s, bbib=%s" % (top, bot, self.data[top]['bib'], self.data[bot]['bib'])
-        if self.data[top]['impulsetime'] is None:
-            alert()
-            if not None is self.data[top]['impulseid']:
-                inconsistency()
-        elif not None is self.data[bot]['impulsetime']:
-            alert()
-            if self.data[bot]['impulseid'] is None:
-                inconsistency()
-        elif not None is self.data[top]['bib']:
-            alert()
-            if self.data[top]['bib'] is None:
-                inconsistency()
-        elif self.data[bot]['bib'] is None:
-            alert()
-            if not None is self.data[bot]['bib']:
-                inconsistency()
-        elif self.data[bot]['bib'] == Db.FLAG_CORRAL_EMPTY:
-            alert()
-        elif self.data[bot]['bib'] == Db.FLAG_ERROR:
-            alert()
-        else:
-            self.db.AssignImpulseToScanByIDs(self.data, top, bot)
+        result = self.db.AssignImpulseToScanByIndices(self.data, top, bot)
+        if result:
             self.bibscanUnmatchedCount -= 1
             self.ResetView()
+        else:
+            alert()
+        return result
 
     def DisassociateScanFromImpulse(self, row):
         """Unmark a finish impulse from a bib"""
@@ -247,15 +229,28 @@ class MatchupGrid(wx.grid.Grid):
     def GetStatusBarText(self):
         return self.GetTable().GetStatusBarText()
 
+    def GetTableRowData(self, rownum):
+        return self.GetTable().data[rownum]
+
     def OnRangeSelect(self, evt):
         if evt.Selecting():
             top = evt.GetTopRow()
             bot = evt.GetBottomRow()
             if trace: print "OnRangeSelect: top %d, bottom %d" % (top, bot)
-            self.GetTable().AssociateScanWithImpulseByRows(top, bot)
+            result = self.GetTable().AssociateScanWithImpulseByRows(top, bot)
             self.ClearSelection()
-            if self.GetNumberRows() > top + 1:
-                self.SetGridCursor(top+1, 0)
+
+            # Move cursor to next unmatched impulse, if it's in view
+            if result:
+                newrow = top
+                while newrow < self.GetNumberRows() - 1:
+                    row = self.GetTableRowData(newrow)
+                    print row
+                    if not None is row.impulsetime and row.scantime is None:
+                        break;
+                    newrow += 1
+                if self.IsVisible(newrow, 0):
+                    self.SetGridCursor(newrow, 0)
 
     def OnGridCellChange(self, evt):
         if trace: print("OnGridCellChange: (%d,%d)\n" %
@@ -288,9 +283,9 @@ class MatchupGrid(wx.grid.Grid):
 
         rowtype = self.GetTable().RowType(evt.GetRow())
         menu = wx.Menu()
-        item = wx.MenuItem(menu, self.ctxDuplicateImpulse, "Duplicate Impulse")
-        if (rowtype != MatchupTable.ROWTYPE_IMPULSE
-            and rowtype != MatchupTable.ROWTYPE_MATCHED):
+        item = wx.MenuItem(menu, self.ctxDisassociateThis,
+                           "Disassociate Bib from Impulse")
+        if rowtype != MatchupTable.ROWTYPE_MATCHED:
             item.Enable(False)
         menu.AppendItem(item)
         item = wx.MenuItem(menu, self.ctxInsertBibscan, "Insert Bib Scan")
@@ -300,9 +295,9 @@ class MatchupGrid(wx.grid.Grid):
         if rowtype == MatchupTable.ROWTYPE_IMPULSE:
             item = wx.MenuItem(menu, self.ctxEraseImpulse, "Erase This Impulse")
             menu.AppendItem(item)
-        item = wx.MenuItem(menu, self.ctxDisassociateThis,
-                           "Disassociate Bib from Impulse")
-        if rowtype != MatchupTable.ROWTYPE_MATCHED:
+        item = wx.MenuItem(menu, self.ctxDuplicateImpulse, "Duplicate Impulse")
+        if (rowtype != MatchupTable.ROWTYPE_IMPULSE
+            and rowtype != MatchupTable.ROWTYPE_MATCHED):
             item.Enable(False)
         menu.AppendItem(item)
 
@@ -379,7 +374,7 @@ class MainFrame(wx.Frame):
                                    wx.YES_NO |
                                    wx.YES_DEFAULT | 
                                    wx.ICON_QUESTION)
-            print dlg.ShowModal()
+            dlg.ShowModal()
             dlg.Destroy()
         self.Close(True)
 

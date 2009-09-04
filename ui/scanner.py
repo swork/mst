@@ -12,6 +12,42 @@ trace = True
 def alert():
     wx.Sound.PlaySound("alert.wav", wx.SOUND_ASYNC)
 
+class BibTextCtrl(wx.TextCtrl):
+    def __init__(self, *args, **kwargs):
+        self.recordFn = kwargs['recordFn']
+        del kwargs['recordFn']
+        wx.TextCtrl.__init__(self, *args, **kwargs)
+        localStyles = wx.TE_PROCESS_ENTER
+        self.SetWindowStyle(self.GetWindowStyle() | localStyles)
+        self.Bind(wx.EVT_TEXT, self.OnText)
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnTextEnter)
+    def OnText(self, evt):
+        s = self.GetValue()
+        ip = self.GetInsertionPoint()
+        lasti = len(s) - 1
+        iter = enumerate(s)
+        i, c = next(iter, (-1,None))
+        while i != -1:
+            if c < '0' or c > '9':
+                ip -= 1
+                if i == lasti:
+                    self.SetValue(s[0:i])
+                else:
+                    self.SetValue(s[0:i] + s[i+1:])
+            i, c = next(iter, (-1,None))
+        self.SetInsertionPoint(ip)
+    def OnTextEnter(self, evt):
+        s = evt.GetString()
+        print s
+        self.recordFn(s)
+        self.Clear()
+    def on_text(self, event):
+        event.Skip()
+        selection = self.GetSelection()
+        value = self.GetValue().upper()
+        self.ChangeValue(value)
+        self.SetSelection(*selection)
+
 class ActivityGrid(wx.grid.Grid):
     def __init__(self, parent, db):
         wx.grid.Grid.__init__(self, parent, -1)
@@ -22,6 +58,8 @@ class ActivityGrid(wx.grid.Grid):
         self.SetRowLabelSize(40)
         self.SetMargins(0,0)
         self.EnableDragRowSize(False)
+        self.Unbind(wx.EVT_TEXT) # no effect?
+        self.Unbind(wx.EVT_KEY_DOWN)
 
     def GetColumnWidthsSum(self):
         n = self.GetNumberCols()
@@ -63,18 +101,12 @@ class MainFrame(wx.Frame):
 
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
         self.Bind(wx.EVT_MENU, self.OnQuit, id=wx.ID_EXIT)
-
         self.Bind(wx.EVT_CLOSE, self.OnQuit)
 
         self.grid = ActivityGrid(self, db)
+#        self.grid.Enable(False) # works for disabling input, but makes it gray
 
-        self.bibField = wx.TextCtrl(self)
-#         self.bibField.SetDefault()
-#        self.Bind(wx.EVT_TEXT_FIELD_CHANGED_FAKE, self.RecordBib)
-#         reportButton = wx.Button(self)
-#         reportButton.SetDefault()
-#         reportButton.SetLabel("Click Here to record a finish impulse")
-#         self.Bind(wx.EVT_BUTTON, self.RecordImpulse)
+        self.bibField = BibTextCtrl(self, recordFn=self.RecordBib)
 
         boxSizer = wx.BoxSizer(wx.VERTICAL)
         boxSizer.Add(self.grid, 100, wx.EXPAND)
@@ -82,9 +114,10 @@ class MainFrame(wx.Frame):
         self.SetSizer(boxSizer)
 
         self.Show(True)
+        self.bibField.SetFocus()
 
-    def RecordBib(self, id):
-        self.db.RecordBib()
+    def RecordBib(self, bibNumber):
+        self.db.RecordBib(bibNumber)
         self.Refresh()
 
     def Refresh(self):

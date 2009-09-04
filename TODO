@@ -38,9 +38,9 @@ B [Done] Explore caching GetAttr results by row (exposed Python bug when tried!)
 
 Editor TODO
 
-A Disallow assigning across "empty corral" marker
+A Edit times out-of-band and validate correct sorting etc.
 
-A All classes extend "object"
+B Lose notion of "save", "dirty", etc.
 
 B Context-menu items into regular menus too
 
@@ -59,9 +59,13 @@ B [done] Run over MySQL
 C [wontdo] On tableresults retrieve -- Consider interleave via sort after fetch.
 A [done] Honor impulses.erased, add to operations
 B [done] No need to see dates
+A [done] Disallow assigning across "empty corral" marker
 
 
 Impulser TODO
+
+A Explore "RegisterHotKey" as a way to catch every possible impulse
+key when app is running
 
 A [done] impulses.erased column, click on row to set it (and disappear row)
 B [done] No need to see dates
@@ -70,4 +74,9 @@ columns, subsequent column widths follow window width proportionately.
 A [done] Log entries to a local CSV for disaster recovery
 B [done] Red close button needs to hit confirmation dialog too
 
+
+Scaner TODO
+
+A Explore "RegisterHotKey" as a way to catch every possible bibscan
+key when app is running
 
