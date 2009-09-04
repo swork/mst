@@ -86,6 +86,8 @@ AA Don't assign anything (unassign) if error flag scanned
 
 A BC notify on change
 
+B Include scan time in tables
+
 B Delete key on bib number to kill it
 
 B Keystrokes in grid go to text field

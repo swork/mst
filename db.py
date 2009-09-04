@@ -153,97 +153,6 @@ class Db(object):
         def __repr__(self):
             return "<Db.Scan('%s',%d)>" % (self.scantime, self.bib)
 
-    def BusyTimesList(self):
-        """Find time periods when finish corral contains more than one rider
-        with finishes not yet assigned.  Each ends only when the
-        corral is marked empty.  Does a rollback() so flush first."""
-        impulses = db.session.query(Db.Impulse).\
-            order_by(Db.Impulse.impulsetime,Db.Impulse.ms,Db.Impulse.id).\
-            all()
-        impulses_enumeration = enumerate(impulses)
-        scans = db.session.query(Db.Scan).\
-            order_by(Db.Scan.scantime).\
-            all()
-        scans_enumeration = enumerate(scans)
-        corral_counter = 0;
-        start_busy = ''
-        results = []
-
-        try:
-            si, scan = scans_enumeration.next()
-        except StopIteration:
-            si = -1
-
-        try:
-            ii, impulse = impulses_enumeration.next()
-        except StopIteration:
-            ii = -1
-
-        while si != -1 or ii != -1:
-            if (si == -1
-                or (impulse.impulsetime <= scan.scantime
-                    if ii != -1 else False)):
-                corral_counter += 1
-                if trace: print "0: %s (%d)" % (impulse, corral_counter)
-                if corral_counter == 2:
-                    # check for subsequent error, then...
-                    start_busy = impulse.impulsetime
-                    if trace: print "start_busy: %s" % start_busy
-                try:
-                    ii, impulse = impulses_enumeration.next()
-                except StopIteration:
-                    ii = -1
-            elif (ii == -1
-                  or (impulse.impulsetime > scan.scantime
-                      if si != -1 else False)):
-                if scan.bib > 0:
-                    corral_counter -= 1
-                elif scan.bib == Db.EMPTY_CORRAL:
-                    # check for subsequent error, then...
-                    corral_counter = 0
-                    if start_busy != '':
-                        results.append((start_busy, scan.scantime))
-                        start_busy = ''
-                        if trace: print "end_busy: %s" % scan.scantime
-                if trace: print "1: %s (%d)" % (scan, corral_counter)
-                try:
-                    si, scan = scans_enumeration.next()
-                except StopIteration:
-                    si = -1
-
-        return results
-            
-#    def OutOfSyncTimesList(self):
-
-    def GetRecentImpulseActivityTable(self, numRows):
-        impulses = self.engine.execute("""
-            select impulses.impulsetime,
-                   impulses.ms,
-                   scans.bib as scans_bib,
-                   impulses.id as impulses_id,
-                   scans.impulse,
-                   impulses.erased as impulses_erased,
-                   scans.id as scans_id
-            from impulses
-               left outer join scans
-                   on scans.impulse = impulses.id
-            where impulses.erased is NULL
-            order by impulsetime desc,
-                     ms desc,
-                     impulses.id desc
-            limit %d""" % numRows)
-        impulses_results = impulses.fetchall()
-        results = []
-        for r in impulses_results:
-            itime = r[0].replace(microsecond=r[1])
-            results.append(RowProxy(['impulseid', r.impulses_id,
-                                     'impulsetime', itime,
-                                     'bib', r.scans_bib,
-                                     'competitor', '',
-                                     'erased', r.impulses_erased,
-                                     'scanid', r.scans_id]))
-        return results
-
     def impulseActivityTableSinceEmptyWithError(self, impulses_res, scans_res):
         results = []
         impulses_res.reverse()
@@ -666,4 +575,3 @@ if __name__ == "__main__":
     for i in range(0, len(observed_finishes)):
         assert(results[i][2] == observed_finishes[i])
 
-    msg("Busy Times List: %s" % db.BusyTimesList())
