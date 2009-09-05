@@ -179,7 +179,9 @@ class Db(object):
                                             'impulsetime', None,
                                             'bib', srow.bib,
                                             'competitor', '',
-                                            'scanid', srow.id]))
+                                            'scanid', srow.id,
+                                            'scanimpulse', srow.impulse,
+                                            'scantime', srow.scantime]))
                 srow = scans_res.pop() if len(scans_res) > 0 else None
             elif doImpulse:
                 itime = irow.impulsetime.replace(microsecond=irow.ms)
@@ -187,7 +189,9 @@ class Db(object):
                                             'impulsetime', itime,
                                             'bib', None,
                                             'competitor', None,
-                                            'scanid', None]))
+                                            'scanid', None,
+                                            'scanimpulse', None,
+                                            'scantime', None]))
                 irow = impulses_res.pop() if len(impulses_res) > 0 else None
             else:
                 inconsistent()
@@ -229,6 +233,8 @@ class Db(object):
                 if (irow.impulsetime < srow.scantime
                     and diff.days == 0 and diff.seconds < 5*60):
                     doMatch = True
+                elif srow.scantime < irow.impulsetime:
+                    doScan = True
                 else:
                     doImpulse = True
             elif irow:
@@ -243,7 +249,9 @@ class Db(object):
                                          'impulsetime', itime,
                                          'bib', srow.bib,
                                          'competitor', '',
-                                         'scanid', srow.id]))
+                                         'scanid', srow.id,
+                                         'scanimpulse', srow.impulse,
+                                         'scantime', srow.scantime]))
                 irow = impulses_res.pop() if len(impulses_res) > 0 else None
                 srow = scans_res.pop()    if len(scans_res)    > 0 else None
             elif doScan:
@@ -251,7 +259,9 @@ class Db(object):
                                          'impulsetime', None,
                                          'bib', srow.bib,
                                          'competitor', '',
-                                         'scanid', srow.id]))
+                                         'scanid', srow.id,
+                                         'scanimpulse', srow.impulse,
+                                         'scantime', srow.scantime]))
                 srow = scans_res.pop() if len(scans_res) > 0 else None
             elif doImpulse:
                 itime = irow.impulsetime.replace(microsecond=irow.ms)
@@ -259,7 +269,9 @@ class Db(object):
                                          'impulsetime', itime,
                                          'bib', None,
                                          'competitor', None,
-                                         'scanid', None]))
+                                         'scanid', None,
+                                         'scanimpulse', None,
+                                         'scantime', None]))
                 irow = impulses_res.pop() if len(impulses_res) > 0 else None
             else:
                 inconsistent()
@@ -286,6 +298,17 @@ class Db(object):
             values ('%s', %s)""" % (scantime, bib))
         self.WriteLogLine(r'"recordBib","%s","%s"' % (scantime, bib))
         self.notifier.NotifyAll()
+
+    def RecordMatches(self, data):
+        print "recordmatches:", data
+        for row in data:
+            if (row.scanimpulse is None
+                and not None is row.scanid
+                and not None is row.impulseid):
+                self.engine.execute("""
+                    update scans 
+                    set impulse = %d
+                    where id = %d""" % (row.impulseid, row.scanid))
 
     def GetMatchTable(self):
         impulses_query = """

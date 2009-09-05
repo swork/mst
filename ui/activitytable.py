@@ -16,14 +16,17 @@ class ActivityTable(wx.grid.PyGridTableBase):
         self.colLabels = [
                           'ImpulseTime',
                           'Bib',
-                          'Competitor']
-        self.colMap = ('impulsetime', 'bib', 'competitor')
+                          'Competitor',
+                          'ScanTime']
+        self.colMap = ('impulsetime', 'bib', 'competitor', 'scantime')
         self.dataTypes = [wx.grid.GRID_VALUE_STRING,
                           wx.grid.GRID_VALUE_NUMBER,
                           wx.grid.GRID_VALUE_STRING,
+                          wx.grid.GRID_VALUE_STRING
                           ]
         self.displayMappers = {}
-        self.displayMappers['impulsetime']= lambda x: DatetimeAsTimestring(x)
+        self.displayMappers['impulsetime'] = lambda x: DatetimeAsTimestring(x)
+        self.displayMappers['scantime'] = lambda x: DatetimeAsTimestring(x)[:8]
 
     def Reload(self):
         if trace: print "reload"
@@ -50,7 +53,7 @@ class ActivityTable(wx.grid.PyGridTableBase):
         return 50
 
     def GetNumberCols(self):
-        return 3
+        return 4
 
     def IsEmptyCell(self,row,col):
         return self.data[row][col] is None

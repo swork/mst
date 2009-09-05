@@ -4,6 +4,7 @@ import wx
 import wx.grid
 from ui.activitytable import ActivityTable
 import notify
+import db
 
 trace = True
 
@@ -120,6 +121,8 @@ class MainFrame(wx.Frame):
 
     def RecordBib(self, bibNumber):
         if not None is bibNumber and len(bibNumber) > 0:
+            if bibNumber == str(db.Db.FLAG_CORRAL_EMPTY):
+                self.db.RecordMatches(self.grid.GetTable().data)
             self.db.RecordBib(bibNumber)
             self.Refresh()
 

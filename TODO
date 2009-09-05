@@ -40,6 +40,8 @@ Editor TODO
 
 A Edit times out-of-band and validate correct sorting etc.
 
+A OK, allow assigning scan to impulse across EMPTY - but confirm.
+
 B Lose notion of "save", "dirty", etc.
 
 B Context-menu items into regular menus too
@@ -78,15 +80,10 @@ B [done] Red close button needs to hit confirmation dialog too
 
 Scanner TODO
 
-AA Assign new bibs to EARLIEST impulse since empty, not latest
+AA Record assignments on EMPTY scan (add scans.impulse to table;
+matches obvious)
 
-AA Record assignments on EMPTY scan
-
-AA Don't assign anything (unassign) if error flag scanned
-
-A BC notify on change
-
-B Include scan time in tables
+B Refresh in menu (debug, too likely we'll want it in production)
 
 B Delete key on bib number to kill it
 
@@ -101,3 +98,8 @@ C Truncate impulsetime fractional seconds, by option
 A [done] Don't assign if scanned > 5m after impulse
 B [done] Catch Enter on empty field
 B [done] Label on text field
+B [done] Include scan time in tables
+A [done] BC notify on change
+AA [done] Don't assign anything (unassign) if error flag scanned
+AA [done] Assign new bibs to EARLIEST impulse since empty, not latest
+
