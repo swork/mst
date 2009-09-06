@@ -1,4 +1,4 @@
-#! /usr/local/bin/python
+#! /usr/bin/env python
 
 todo = """
  - Test bib assignments, ensure each is unique
