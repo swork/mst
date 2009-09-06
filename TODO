@@ -14,14 +14,17 @@ there.
 
 All TODO
 
-A Review fetchall(), fetchmany() and fetchone() results objects, avoid
-positional notation.
+A Database - new table for "group start times", from which participant
+column for start time is drawn (and overridden in the DB as
+necessary). "100", "Comp", "Rec", "RecF", "SR"
 
-B Broadcast notifier for updates
+A Integration with registration: minimal "entries" table: bib, name,
+startkey; starttod; finishtod (latest impulse matched with bib), totaltime
+(difference). Export that and provide a lookup function off bib.
+
+A Option mechanism - command line or env vars
 
 B Microseconds field in db should be called 'usecs', not 'ms'
-
-B Q for Charlie: finish corral handling of multi-lap competitors
 
 C HD camera on start for bib verification, in case of questions?
 
@@ -34,6 +37,12 @@ A [Done] Db.Scan's backref is order_by=id -- what impact this? Should be
 think) as impulses.id is a ForeignKey constraint on Scan and a primary
 key (so unique) on Impulse. Check though...
 B [Done] Explore caching GetAttr results by row (exposed Python bug when tried!)
+A [done] Review fetchall(), fetchmany() and fetchone() results objects, avoid
+positional notation.
+B [done] Broadcast notifier for updates
+B [done] Q for Charlie: finish corral handling of multi-lap
+competitors (answer: scan them; do all calcs off latest impulse/scan)
+
 
 
 Editor TODO
@@ -42,7 +51,7 @@ A Edit times out-of-band and validate correct sorting etc.
 
 A OK, allow assigning scan to impulse across EMPTY - but confirm.
 
-B Lose notion of "save", "dirty", etc.
+B Lose notion of "save", "dirty", etc. - just Refresh
 
 B Context-menu items into regular menus too
 

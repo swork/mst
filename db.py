@@ -100,8 +100,13 @@ class Db(object):
         __tablename__ = 'entries'
 
         id = Column(Integer(11), primary_key=True)
-        firstname = Column(String(40))
         bib = Column(Integer(11), nullable=False)
+        lastname = Column(String(40))
+        firstname = Column(String(40))
+        startkey = Column(String(40))
+        starttod = Column(mysql.MSDateTime, nullable=True, default=None)
+        finishtod = Column(mysql.MSDateTime, nullable=True, default=None)
+        totalsecs = Column(Integer(11), nullable=True, default=None)
 
         def __init__(self, bib, firstname):
             self.bib = bib
