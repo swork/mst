@@ -19,7 +19,10 @@ class Hear(object):
         self.win = win
         self.keepGoing = True
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        opt = self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        try:
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except AttributeError:
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((INADDR_ANY, HEAR_PORT))
         thread.start_new_thread(self.HearerThread, ())
 
