@@ -95,15 +95,31 @@ class Db(object):
     def WriteLogLine(self, logline):
         open(self.logfilename, 'a').write("%s\n" % logline)
 
+    class Group(Base):
+        """Start time by category"""
+        __tablename__ = 'groups'
+
+        id = Column(Integer(11), primary_key=True)
+        group = Column(String(10), nullable=False)
+        starttod = Column(mysql.MSDateTime, nullable=True, default=None)
+
+        def __init__(self, group, starttod):
+            self.group = group
+            self.starttod = starttod
+
+        def __repr__(self):
+            return "<Db.Entry(%d,'%s','%s')>" % (self.id,
+                                                  self.group, self.starttod)
+
     class Entry(Base):
         """Registration info for an entrant"""
         __tablename__ = 'entries'
 
         id = Column(Integer(11), primary_key=True)
         bib = Column(Integer(11), nullable=False)
-        lastname = Column(String(40))
-        firstname = Column(String(40))
-        startkey = Column(String(40))
+        lastname = Column(String(40), nullable=False)
+        firstname = Column(String(40), nullable=False)
+        startkey = Column(String(40), nullable=False)
         starttod = Column(mysql.MSDateTime, nullable=True, default=None)
         finishtod = Column(mysql.MSDateTime, nullable=True, default=None)
         totalsecs = Column(Integer(11), nullable=True, default=None)
@@ -113,7 +129,8 @@ class Db(object):
             self.firstname = firstname
 
         def __repr__(self):
-            return "<Db.Entry('%s','%s')>" % (self.firstname, self.bib)
+            return "<Db.Entry(%d,'%s','%s')>" % (self.id, 
+                                                 self.firstname, self.bib)
 
     class Impulse(Base):
         """Time at which *someone* crossed the finish line. Assign bib later"""
@@ -133,7 +150,7 @@ class Db(object):
             self.ms = dt.microsecond
 
         def __repr__(self):
-            return "<Db.Impulse('%s')>" % (self.impulsetime)
+            return "<Db.Impulse(%d,'%s')>" % (self.id, self.impulsetime)
 
     class Scan(Base):
         """Bib number and time scanned as finisher leaves the finish corral"""
@@ -156,7 +173,7 @@ class Db(object):
             self.bib = bib
 
         def __repr__(self):
-            return "<Db.Scan('%s',%d)>" % (self.scantime, self.bib)
+            return "<Db.Scan(%d,'%s',%d)>" % (self.id, self.scantime, self.bib)
 
     def impulseActivityTableSinceEmptyWithError(self, impulses_res, scans_res):
         results = []

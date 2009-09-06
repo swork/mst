@@ -25,7 +25,13 @@ class BibTextCtrl(wx.TextCtrl):
         ip = self.GetInsertionPoint()
         lasti = len(s) - 1
         iter = enumerate(s)
-        i, c = next(iter, (-1,None))
+        try:
+            i, c = iter.next((-1,None)) # py2.6ism
+        except TypeError:
+            try:
+                i, c = iter.next()
+            except StopIteration:
+                i = -1
         while i != -1:
             if c < '0' or c > '9':
                 ip -= 1
@@ -33,7 +39,13 @@ class BibTextCtrl(wx.TextCtrl):
                     self.SetValue(s[0:i])
                 else:
                     self.SetValue(s[0:i] + s[i+1:])
-            i, c = next(iter, (-1,None))
+            try:
+                i, c = next(iter, (-1,None)) # py2.6ism
+            except TypeError:
+                try:
+                    i, c = iter.next()
+                except StopIteration:
+                    i = -1
         self.SetInsertionPoint(ip)
     def OnTextEnter(self, evt):
         s = evt.GetString()

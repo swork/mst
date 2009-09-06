@@ -79,6 +79,8 @@ Impulser TODO
 A Explore "RegisterHotKey" as a way to catch every possible impulse
 key when app is running
 
+A ERASE THIS IMPULSE didn't work? Not done?
+
 A [done] impulses.erased column, click on row to set it (and disappear row)
 B [done] No need to see dates
 C [done] Sizing: column widths follow contents, initial window width follows
