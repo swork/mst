@@ -202,8 +202,8 @@ class Db(object):
                 results.insert(0, RowProxy(['impulseid', None,
                                             'impulsetime', None,
                                             'bib', srow.bib,
-                                            'competitor', '',
-                                            'scanid', srow.id,
+                                            'competitor', srow.competitor,
+                                            'scanid', srow.scanid,
                                             'scanimpulse', srow.impulse,
                                             'scantime', srow.scantime]))
                 srow = scans_res.pop() if len(scans_res) > 0 else None
@@ -236,10 +236,17 @@ class Db(object):
         iorig = copy(impulses_res)
         where_scan = ''
         if not None is empty.lastTime:
-            where_scan = ("where bib != %s and scantime >= '%s'"
+            where_scan = ("where scans.bib != %s and scantime >= '%s'"
                           % (Db.FLAG_CORRAL_EMPTY, empty.lastTime))
         scans_res = self.engine.execute("""
-            select * from scans %s
+            select scans.id as scanid,
+                   scans.bib as bib,
+                   scans.scantime as scantime,
+                   scans.impulse as impulse,
+                   CONCAT(entries.firstname,' ',entries.lastname) as competitor
+            from scans
+                left outer join entries on scans.bib = entries.bib
+            %s
             order by scantime desc""" % where_scan).fetchall()
         sorig = copy(scans_res)
 
@@ -272,8 +279,8 @@ class Db(object):
                 results.append(RowProxy(['impulseid', irow.id,
                                          'impulsetime', itime,
                                          'bib', srow.bib,
-                                         'competitor', '',
-                                         'scanid', srow.id,
+                                         'competitor', srow.competitor,
+                                         'scanid', srow.scanid,
                                          'scanimpulse', srow.impulse,
                                          'scantime', srow.scantime]))
                 irow = impulses_res.pop() if len(impulses_res) > 0 else None
@@ -282,8 +289,8 @@ class Db(object):
                 results.append(RowProxy(['impulseid', None,
                                          'impulsetime', None,
                                          'bib', srow.bib,
-                                         'competitor', '',
-                                         'scanid', srow.id,
+                                         'competitor', srow.competitor,
+                                         'scanid', srow.scanid,
                                          'scanimpulse', srow.impulse,
                                          'scantime', srow.scantime]))
                 srow = scans_res.pop() if len(scans_res) > 0 else None
