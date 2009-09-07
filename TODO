@@ -14,7 +14,8 @@ there.
 
 All TODO
 
-A BUG Impulser/scanner don't show assignments made in editor.
+A BUG Impulser/scanner don't show assignments made in editor, implying
+  WORSE BUG 999 scan may trash assignments made in editor.
 
 A Integration with registration: minimal "entries" table: bib, name,
   startkey; starttod; finishtod (latest impulse matched with bib), totaltime

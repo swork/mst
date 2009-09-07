@@ -102,7 +102,7 @@ class Db(object):
         __tablename__ = 'groups'
 
         id = Column(Integer(11), primary_key=True)
-        group = Column(String(10), nullable=False)
+        startkey = Column(String(10), nullable=False)
         starttod = Column(mysql.MSDateTime, nullable=True, default=None)
 
         def __init__(self, group, starttod):
