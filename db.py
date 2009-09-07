@@ -226,18 +226,28 @@ class Db(object):
             select max(scantime) as lastTime
             from scans
             where bib=%s""" % Db.FLAG_CORRAL_EMPTY).fetchone()
-        where_impulse = ''
+
+        where_impulse= 'where impulses.erased is NULL and scans.impulse is NULL'
         if not None is empty.lastTime:
-            where_impulse = "where impulsetime >= '%s'" % empty.lastTime
-        impulses_res = self.engine.execute("""
-            select * from impulses %s
-            order by impulsetime desc, ms desc, id desc"""
-                                           % where_impulse).fetchall()
+            where_impulse += " and impulsetime >= '%s'" % empty.lastTime
+        sql = """
+            select impulses.id as id,
+                   impulses.impulsetime as impulsetime,
+                   impulses.ms as ms,
+                   scans.impulse as scans_impulse
+            from impulses
+                left outer join scans on impulses.id = scans.impulse
+            %s
+            order by impulsetime desc, ms desc, id desc""" % where_impulse
+        impulses_res = self.engine.execute(sql).fetchall()
         iorig = copy(impulses_res)
-        where_scan = ''
+        print "iorig sql:", sql
+        print "iorig res:", iorig
+
+        where_scan = 'where scans.impulse is NULL'
         if not None is empty.lastTime:
-            where_scan = ("where scans.bib != %s and scantime >= '%s'"
-                          % (Db.FLAG_CORRAL_EMPTY, empty.lastTime))
+            where_scan += (" and scans.bib != %s and scantime >= '%s'"
+                           % (Db.FLAG_CORRAL_EMPTY, empty.lastTime))
         scans_res = self.engine.execute("""
             select scans.id as scanid,
                    scans.bib as bib,
