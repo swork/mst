@@ -2,6 +2,7 @@ import thread
 import wx
 import wx.lib.newevent
 import socket
+import types
 
 INADDR_BC = '<broadcast>'
 HEAR_PORT = 1793
@@ -18,13 +19,21 @@ class Hear(object):
     def __init__(self, win):
         self.win = win
         self.keepGoing = True
+
+        if type(BIND_ADDRESS) == types.StringType:
+            self.Bind(BIND_ADDRESS)
+        else:
+            for addr in BIND_ADDRESS:
+                self.Bind(addr)
+        thread.start_new_thread(self.HearerThread, ())
+
+    def Bind(self, addr):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         except AttributeError:
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind((BIND_ADDRESS, HEAR_PORT))
-        thread.start_new_thread(self.HearerThread, ())
+        self.sock.bind((addr, HEAR_PORT))
 
     def HearerThread(self):
         while self.keepGoing:
