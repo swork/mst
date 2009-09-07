@@ -14,35 +14,34 @@ there.
 
 All TODO
 
-A Database - new table for "group start times", from which participant
-column for start time is drawn (and overridden in the DB as
-necessary). "100", "Comp", "Rec", "RecF", "SR"
+A BUG Impulser/scanner don't show assignments made in editor.
 
 A Integration with registration: minimal "entries" table: bib, name,
-startkey; starttod; finishtod (latest impulse matched with bib), totaltime
-(difference). Export that and provide a lookup function off bib.
-
-A Option mechanism - command line or env vars
+  startkey; starttod; finishtod (latest impulse matched with bib), totaltime
+  (difference). Export that and provide a lookup function off bib.
 
 B Microseconds field in db should be called 'usecs', not 'ms'
 
 C HD camera on start for bib verification, in case of questions?
 
 A [Done] All times manipulated as naive datetime.datetime values in local TZ,
-and stored as db datetimes with separate ms field.  FULL DATES.
+  and stored as db datetimes with separate ms field.  FULL DATES.
 A [Done] Can't order by impulse.id: DuplicateImpulse screws this up, as it
-can be done after other impulses have come in.
+  can be done after other impulses have come in.
 A [Done] Db.Scan's backref is order_by=id -- what impact this? Should be
-"none" as multiple scans for the same impulse aren't possible (I
-think) as impulses.id is a ForeignKey constraint on Scan and a primary
-key (so unique) on Impulse. Check though...
+  "none" as multiple scans for the same impulse aren't possible (I
+  think) as impulses.id is a ForeignKey constraint on Scan and a primary
+  key (so unique) on Impulse. Check though...
 B [Done] Explore caching GetAttr results by row (exposed Python bug when tried!)
 A [done] Review fetchall(), fetchmany() and fetchone() results objects, avoid
-positional notation.
+  positional notation.
 B [done] Broadcast notifier for updates
 B [done] Q for Charlie: finish corral handling of multi-lap
-competitors (answer: scan them; do all calcs off latest impulse/scan)
-
+  competitors (answer: scan them; do all calcs off latest impulse/scan)
+A [done] Database - new table for "group start times", from which participant
+  column for start time is drawn (and overridden in the DB as
+  necessary). "100", "Comp", "Rec", "RecF", "SR"
+A [done] Option mechanism - command line or env vars (config file)
 
 
 Editor TODO
