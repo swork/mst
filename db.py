@@ -8,10 +8,12 @@ from datetime import datetime
 import types, re
 from copy import copy
 import notify
+import os
 
 trace = False
-
 Base = declarative_base()
+CONNECTION_SPECIFIER = 'NO_DEFAULT'
+LOGFILE = 'no/default/at/all'
 
 timere = re.compile(r"(\d+):(\d+):(\d+).?(\d*)")
 def ConvertToDatetime(timeValue):
@@ -84,16 +86,16 @@ class Db(object):
     FLAG_ERROR = 998
     FLAG_DONT_ASSIGN = 0
 
-    def __init__(self, dbstring, logfilename, echo):
-        self.logfilename = logfilename
-        self.engine = create_engine(dbstring, echo=echo)
+    def __init__(self, echo):
+        self.engine = create_engine(CONNECTION_SPECIFIER, echo=echo)
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
         Base.metadata.create_all(self.engine)
         self.notifier = notify.Say()
 
-    def WriteLogLine(self, logline):
-        open(self.logfilename, 'a').write("%s\n" % logline)
+    def WriteLog(self, sql_command):
+        fname = os.path.expanduser(LOGFILE % os.getpid())
+        open(fname, 'a').write("%s;\n" % sql_command)
 
     class Group(Base):
         """Start time by category"""
@@ -304,21 +306,20 @@ class Db(object):
         if impulseTime is None:
             impulseTime = datetime.now()
         if trace: print impulseTime
-        self.engine.execute("""insert into impulses (impulsetime, ms)
-                               values ('%s', %d)"""
-                            % (impulseTime.isoformat(),
-                               impulseTime.microsecond))
-        self.WriteLogLine(r'"recordImpulse","%s","%s"' % \
-                             (impulseTime.isoformat(), impulseTime.microsecond))
+        sql = """ insert into impulses (impulsetime, ms)
+                  values ('%s', %d)""" % (impulseTime.isoformat(),
+                                          impulseTime.microsecond)
+        self.engine.execute(sql)
+        self.WriteLog(sql)
         self.notifier.NotifyAll()
 
     def RecordBib(self, bib):
         if trace: print "recordbib:%d" % bib
         scantime = datetime.now()
-        self.engine.execute("""
-            insert into scans (scantime, bib)
-            values ('%s', %s)""" % (scantime, bib))
-        self.WriteLogLine(r'"recordBib","%s","%s"' % (scantime, bib))
+        sql = """insert into scans (scantime, bib)
+                 values ('%s', %s)""" % (scantime, bib)
+        self.engine.execute(sql)
+        self.WriteLog(sql)
         self.notifier.NotifyAll()
 
     def RecordMatches(self, data):
@@ -327,10 +328,12 @@ class Db(object):
             if (row.scanimpulse is None
                 and not None is row.scanid
                 and not None is row.impulseid):
-                self.engine.execute("""
+                sql = """
                     update scans 
                     set impulse = %d
-                    where id = %d""" % (row.impulseid, row.scanid))
+                    where id = %d""" % (row.impulseid, row.scanid)
+                self.engine.execute(sql)
+                self.WriteLog(sql)
 
     def GetMatchTable(self):
         impulses_query = """
@@ -450,8 +453,16 @@ class Db(object):
                                               itime, stime)).fetchall()
         if len(empties) > 0:
             return False
-        set = { 'impulse': impulseid }
-        self.session.query(Db.Scan).filter("id = %s" % scanid).update(set)
+
+#         set = { 'impulse': impulseid }
+#         self.session.query(Db.Scan).filter("id = %s" % scanid).update(set)
+        sql = """
+            update scans
+            set impulse = %d
+            where id = %d""" % (impulseid, scanid)
+        self.engine.execute(sql)
+        self.WriteLog(sql)
+
         self.notifier.NotifyAll()
         return True
 
@@ -497,8 +508,13 @@ class Db(object):
 
     def UnassignImpulseByRow(self, tableresults, row):
         scanid = tableresults[row]['scanid']
-        set = { 'impulse': None }
-        self.session.query(Db.Scan).filter("id = %s" % scanid).update(set)
+
+#        set = { 'impulse': None }
+#        self.session.query(Db.Scan).filter("id = %s" % scanid).update(set)
+        sql = "update scans set impulse = NULL where id = %s" % scanid
+        self.engine.execute(sql)
+        self.WriteLog(sql)
+
         self.notifier.NotifyAll()
         del(tableresults[:])    # now caller must reload
 
@@ -508,10 +524,12 @@ class Db(object):
 #         self.session.commit()
 
     def EraseImpulseByID(self, impulseid):
-        self.engine.execute("""update impulses
-                               set erased='%s'
-                               where id=%s""" % (datetime.now().isoformat(),
-                                                 impulseid))
+        sql = """
+            update impulses
+            set erased='%s'
+            where id=%s""" % (datetime.now().isoformat(), impulseid)
+        self.engine.execute(sql)
+        self.WriteLog(sql)
         self.notifier.NotifyAll()
 
     def Save(self):

@@ -3,57 +3,57 @@
 import sys, getopt
 import wx
 from ui.scanner import MainFrame
-from db import Db
+import db
+import notify                   # so we can configure it, below
+import os.path
+
+CONFIGURATION = "production"
 
 class MSTScannerApp(wx.PySimpleApp):
-    def __init__(self, dbstring, logfilename):
+    def __init__(self):
         wx.PySimpleApp.__init__(self)
-        self.db = Db(dbstring, logfilename, echo=False)
+        self.db = db.Db(echo=False)
         self.frame = MainFrame(None, wx.ID_ANY, 'Record Bib Scans', self.db)
 
     def Reload(self):
         self.frame.Refresh()
+
+def print_usage(argv0):
+    print "%s [-h] [-c config]" % argv0
 
 class Usage(Exception):
     def __init__(self, msg):
         self.msg = msg
 
 def main(argv=None):
+    global CONFIGURATION
     if argv is None:
         argv = sys.argv
 
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "c:hl:",
-                                       ["connect=","help","log="])
-            dbstring = None
-            logfilename = None
+            opts, args = getopt.getopt(argv[1:], "c:h",
+                                       ["config=","help"])
             for o, a in opts:
-                if o in ("-c", "--connect"):
-                    dbstring = a
+                if o in ("-c", "--config"):
+                    CONFIGURATION = a
                 elif o in ("-h", "--help"):
                     print_usage(argv[0])
                     return 2
-                elif o in ("-l", "--log"):
-                    logfilename = a
                 else:
                     assert getopt.GetoptError, "unhandled option %s" % o
         except getopt.GetoptError, msg:
             raise Usage(msg)
-
-        if dbstring is None:
-            dbstring = 'mysql://anonymous@localhost/test'
-        if logfilename is None:
-            logfilename = "./scanner_log.csv"
-
-        app = MSTScannerApp(dbstring, logfilename)
-        app.Reload()
-        app.MainLoop()
-        return 0
-
     except Usage, err:
         print >>sys.stderr, err.msg
         print >>sys.stderr, "for help use --help"
         return 2
+
+    execfile(os.path.expanduser("~/.mst.%s" % CONFIGURATION))
+    app = MSTScannerApp()
+    app.Reload()
+    app.MainLoop()
+    return 0
+
 
 sys.exit(main())

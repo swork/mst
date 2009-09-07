@@ -1,0 +1,16 @@
+# Configuration for MST (Mass Start Timer).
+# Name is ~/.mst.testing, ~/.mst.production -- see -c option on each program.
+
+# Address the notifier should bind to for sending and receiving broadcasts.
+# INADDR_ANY coughs blood if any interface gives trouble.
+notify.BIND_ADDRESS = '10.1.1.202'
+
+# SQAlchemy database specification. No default for this, to avoid confusion
+db.CONNECTION_SPECIFIER = 'mysql://anonymous@10.1.1.203/test'
+
+# Local log of database-altering SQL statements from all MST programs.
+# Must include '%d', which will be replaced with PID.
+db.LOGFILE = '~/mst-testing-%d.log'
+
+
+

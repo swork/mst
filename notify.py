@@ -3,9 +3,9 @@ import wx
 import wx.lib.newevent
 import socket
 
-INADDR_ANY = ''
 INADDR_BC = '<broadcast>'
 HEAR_PORT = 1793
+BIND_ADDRESS = ''               # default, see ~/.mst for override
 
 (UpdateInfoEvent, EVT_UPDATE_INFO) = wx.lib.newevent.NewEvent()
 
@@ -23,7 +23,7 @@ class Hear(object):
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         except AttributeError:
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind((INADDR_ANY, HEAR_PORT))
+        self.sock.bind((BIND_ADDRESS, HEAR_PORT))
         thread.start_new_thread(self.HearerThread, ())
 
     def HearerThread(self):

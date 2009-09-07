@@ -26,8 +26,8 @@ class BibTextCtrl(wx.TextCtrl):
         lasti = len(s) - 1
         iter = enumerate(s)
         try:
-            i, c = iter.next((-1,None)) # py2.6ism
-        except TypeError:
+            i, c = next(iter, (-1,None)) # py2.6ism
+        except NameError:
             try:
                 i, c = iter.next()
             except StopIteration:
@@ -41,7 +41,7 @@ class BibTextCtrl(wx.TextCtrl):
                     self.SetValue(s[0:i] + s[i+1:])
             try:
                 i, c = next(iter, (-1,None)) # py2.6ism
-            except TypeError:
+            except NameError:
                 try:
                     i, c = iter.next()
                 except StopIteration:

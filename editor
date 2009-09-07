@@ -1,28 +1,27 @@
 #! /usr/bin/env python
 
 todo = """
- - Test bib assignments, ensure each is unique
  - Set timing and presentation precision separately; handle ties
  - Identify anomalies: dup bibscans, bad bibs (no record)
- - Review .commit() -- was REQUIRED after insert, why?  (ORM is the answer)
 """
 
 import sys, getopt
 import wx
 from ui.editor import MainFrame
-from db import Db
+import db
+import os.path
+import notify                   # so we can configure it
+
+CONFIGURATION = "production"
 
 class MSTEditorApp(wx.PySimpleApp):
-    def __init__(self, dbstring):
+    def __init__(self):
         wx.PySimpleApp.__init__(self)
-        self.db = Db(dbstring, logfilename="editor.log", echo=False)
+        self.db = db.Db(echo=False)
         self.frame = MainFrame(None, wx.ID_ANY, 'Edit Timing', self.db)
         self.Bind(wx.EVT_MENU, self.OnMakeEasys, id=MainFrame.ID_EASY)
 
-        self.todo_dlg = wx.MessageDialog(self.frame, todo, "To Do", wx.OK)
-#        self.todo_dlg.ShowModal()
-        self.todo_dlg.Destroy()
-
+# Move this to db.py
     def OnMakeEasys(self, evt):
         def check_assign(t, i, empty_at, db):
             if not None is empty_at and empty_at == i - 3:
@@ -93,23 +92,24 @@ class MSTEditorApp(wx.PySimpleApp):
             self.db.session.add(Db.Scan(itime, Db.FLAG_CORRAL_EMPTY))
 
 def print_usage(argv0):
-    print "%s [-h] [-c connectstring]" % argv0
+    print "%s [-h] [-c config]" % argv0
 
 class Usage(Exception):
     def __init__(self, msg):
         self.msg = msg
 
 def main(argv=None):
+    global CONFIGURATION
+
     if argv is None:
         argv = sys.argv
 
     try:
         try:
             opts, args = getopt.getopt(argv[1:], "c:h", ["connect=","help"])
-            dbstring = None
             for o, a in opts:
-                if o in ("-c", "--connect"):
-                    dbstring = a
+                if o in ("-c", "--config"):
+                    CONFIGURATION = a
                 elif o in ("-h", "--help"):
                     print_usage(argv[0])
                     return 2
@@ -117,21 +117,18 @@ def main(argv=None):
                     assert getopt.GetoptError, "unhandled option %s" % o
         except getopt.GetoptError, msg:
             raise Usage(msg)
-
-        if dbstring is None:
-            dbstring = 'mysql://anonymous@localhost/test'
-#            dbstring = 'sqlite:///:memory:'
-        app = MSTEditorApp(dbstring)
-        if dbstring == 'sqlite:///:memory:':
-            app.LoadTestDataBig()
-            app.db.session.commit()
-        app.Reload()
-        app.MainLoop()
-        return 0
-
     except Usage, err:
         print >>sys.stderr, err.msg
         print >>sys.stderr, "for help use --help"
         return 2
+
+    execfile(os.path.expanduser("~/.mst.%s" % CONFIGURATION))
+    app = MSTEditorApp()
+    if False:
+        app.LoadTestDataBig()
+        app.db.session.commit()
+    app.Reload()
+    app.MainLoop()
+    return 0
 
 sys.exit(main())
