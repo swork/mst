@@ -77,6 +77,168 @@ class RowProxy(object):
                     raise AttributeError, key
             except:
                 raise
+    def append(self, key, value):
+        self.arr.append(key)
+        self.arr.append(value)
+        self.dict[key] = value
+    def Values(self):
+        return self.arr[1::2]
+    def SubsetColumns(self, keys):
+        res = RowProxy([])
+        for k in keys:
+            res.append(k, self.dict[k])
+        return res
+
+def multiListSliceCount(lol):
+    """Determine the terminating index for multiListSlice"""
+    count = 1
+    for i in range(0, len(lol)):
+        count *= len(lol[i])
+    #print "multiListSliceCount of:%s is:%d" % (lol, count)
+    return count
+
+def multiListSlice(lol, index):
+    """Pick a single element from each list in a list of lists and return
+    the set as a list."""
+    divisor = 1
+    values = []
+    for i in range(0, len(lol)):
+        index = (index / divisor) % len(lol[i])
+        values[i] = lol[i][index]
+        divisor *= len(lol[i])
+    return values
+
+def flatten(x):
+    result = []
+    for el in x:
+        if hasattr(el, "__iter__") and not isinstance(el, basestring):
+            result.extend(flatten(el))
+        else:
+            result.append(el)
+    return result
+
+def hamming_weight(n):
+    count = 0
+    while n:
+        n = n & (n-1)           # zero the rightmost bit
+        count += 1
+    return count
+
+def orderByIncreasingBitCount(n):
+    """Return an ordering of the n-bit integers by increasing bit count."""
+    res = [0]                   # freebie
+    biggest = 2**n - 1
+    for i in range(1, n):
+        for j in range(1, biggest):
+            if hamming_weight(j) == i:
+                res.append(j)
+    res.append(biggest)         # another freebie
+    return res
+
+class QueryGeneratorTop(object):
+    def __init__(self, dbobject, table, columnNames):
+        self.db = dbobject
+        self.table = table
+        self.columnNames = columnNames
+        self.zeros = {}         # dict of tuple=>1 colval combos
+        self.distinctValues = RowProxy([])
+        for k in columnNames:
+            sql= ("select distinct %s from %s where %s is not NULL and %s != ''"
+                  % (k, table, k, k))
+            listOfTuples = self.db.engine.execute(sql).fetchall()
+            self.distinctValues.append(k, flatten(listOfTuples))
+
+    def __repr__(self):
+        return ("<QueryGeneratorTop: table:%s columnNames:%s distinctValues:%s"
+                % (self.table, self.columnNames, self.distinctValues))
+
+class QueryGenerator(object):
+    def __init__(self, qgt, column_subset_mask, formatter):
+        self.top = qgt
+        self.formatter = formatter
+        self.counter = 0
+        self.columnNames = []
+        self.alls = []          # columns excluded => "all values"
+
+        # Pick columns from full list by bits set in subset_mask
+        for i in range(0, len(self.top.columnNames)):
+            if ((1 << i) & column_subset_mask) != 0:
+                self.columnNames.append(self.top.columnNames[i])
+            else:
+                self.alls.append(self.top.columnNames[i])
+        if len(self.columnNames) == 0:
+            self.distincts = RowProxy([]) # empty
+            self.limit = 1
+        else:
+            self.distincts = self.top.distinctValues.SubsetColumns(self.columnNames)
+            self.limit = multiListSliceCount(self.distincts.Values())
+
+    def __repr__(self):
+        return ("<QueryGenerator: counter:%d columnNames:%s alls:%s"
+                + " distincts:%s limit:%d>") \
+            % (self.counter, self.columnNames, self.alls, self.distincts, 
+               self.limit)
+
+    def nextSelections(self):
+        if self.counter >= self.limit:
+            return None
+        divisor = 1
+        selections = {}
+        for i in range(0, len(self.columnNames)):
+            distinct_column_values = self.distincts.Values()[i]
+            index = (self.counter / divisor) % len(distinct_column_values)
+            name = self.columnNames[i]
+            value = distinct_column_values[index]
+            selections[name] = value
+            divisor *= len(distinct_column_values)
+        self.counter += 1
+        return selections
+
+    def _whereClause(self, selections):
+        keys = selections.keys()
+        if len(keys):
+            items = " and ".join(map(lambda k: "%s = '%s'" % (k, selections[k]),
+                                     keys))
+            return "where %s" % items
+        return ""
+
+    def _generateResultCombinations_getRows(self, selections):
+        whereClause = self._whereClause(selections)
+        sql = "select * from %s %s order by totalsecs limit 10" \
+            % (self.top.table, whereClause)
+        rows = self.top.db.engine.execute(sql).fetchall()
+        sql = "select count(*) from %s %s" \
+            % (self.top.table, whereClause)
+        count = self.top.db.engine.execute(sql).fetchone()[0]
+        return rows, count
+
+    def IsInZeros(self, selections):
+        keys = selections.keys()
+        for i in range(0,len(keys)):
+            for j in range(i,len(keys)):
+                tester = {}
+                for k in keys[i:j+1]:
+                    tester[k] = selections[k]
+                trykey = tuple(sorted(tester.items()))
+                #print "IsInZeros testing i:%d j:%d got:%s in:%s" % (i, j, trykey, self.top.zeros)
+                if self.top.zeros.has_key(tuple(sorted(tester.items()))):
+                    #print "IsInZeros %s got True" % selections
+                    return True
+        #print "IsInZeros %s got False" % selections
+        return False
+
+    def GenerateResultCombinations(self):
+        selections = self.nextSelections()
+        while selections:
+            if self.IsInZeros(selections) is False:
+                rows,count= self._generateResultCombinations_getRows(selections)
+                if count > 0:
+                    self.formatter(selections, rows, count)
+                else:
+                    adder = tuple(sorted(selections.items()))
+                    self.top.zeros[adder] = 0
+                    #print "Adding:%s to zeros, now:%s" % (adder, self.top.zeros)
+            selections = self.nextSelections()
 
 class Db(object):
     """Hold the database session info.  Only one instance possible?"""
@@ -121,7 +283,12 @@ class Db(object):
         bib = Column(Integer(11), nullable=False)
         lastname = Column(String(40), nullable=False)
         firstname = Column(String(40), nullable=False)
-        startkey = Column(String(40), nullable=False)
+        cat = Column(String(40), nullable=False)
+        agegp = Column(String(10), nullable = True, default=None)
+        bike = Column(String(10), nullable = True, default=None)
+        ath_clyde = Column(String(1), nullable=True, default=None)
+        gender = Column(String(1), nullable=True, default=None)
+        reside = Column(String(7), nullable=True, default=None)
         starttod = Column(mysql.MSDateTime, nullable=True, default=None)
         finishtod = Column(mysql.MSDateTime, nullable=True, default=None)
         totalsecs = Column(Integer(11), nullable=True, default=None)
@@ -181,7 +348,7 @@ class Db(object):
         results = []
         impulses_res.reverse()
         scans_res.reverse()
-        print "in i:%d s:%d" % (len(impulses_res), len(scans_res))
+        #print "in i:%d s:%d" % (len(impulses_res), len(scans_res))
         irow = impulses_res.pop() if len(impulses_res) > 0 else None
         srow = scans_res.pop()    if len(scans_res) > 0    else None
         while True:
@@ -241,8 +408,8 @@ class Db(object):
             order by impulsetime desc, ms desc, id desc""" % where_impulse
         impulses_res = self.engine.execute(sql).fetchall()
         iorig = copy(impulses_res)
-        print "iorig sql:", sql
-        print "iorig res:", iorig
+        #print "iorig sql:", sql
+        #print "iorig res:", iorig
 
         where_scan = 'where scans.impulse is NULL'
         if not None is empty.lastTime:
@@ -340,7 +507,7 @@ class Db(object):
         self.notifier.NotifyAll()
 
     def RecordMatches(self, data):
-        print "recordmatches:", data
+        #print "recordmatches:", data
         for row in data:
             if (row.scanimpulse is None
                 and not None is row.scanid
@@ -554,6 +721,67 @@ class Db(object):
 
     def IsUnsaved(self):
         db.session.dirty()
+
+    def GenerateResults(self):
+        """Get top finishers by all combinations of categories."""
+        all = ('cat','agegp','bike','ath_clyde','gender','reside')
+        ord = orderByIncreasingBitCount(len(all))
+        qgt = QueryGeneratorTop(self, 'entries', all)
+        self.StartReport("FAKE DATA, DEV ONLY, IGNORE OR DIE")
+        for i in ord:
+            qg = QueryGenerator(qgt, i, self.CompileReport)
+            #print qg
+            qg.GenerateResultCombinations()
+        self.FinishReport()
+
+    def StartReport(self, message):
+        self.message = message
+        self.reportTime = datetime.now()
+        self.page = 0
+        self.line = 0
+        self.linesPerPage = 60
+        self.rfd = open("./FinishReport.txt", "w")
+        self.NewPage()
+
+    def NewPage(self):
+        if self.page > 0:
+            self.rfd.write("\l")
+        self.page += 1
+        self.rfd.write("%-19.19s   %-40.40s %10.10s\n\n"
+                       % (self.reportTime.isoformat(), self.message,
+                          "page %d" % self.page))
+        self.line = 1
+
+    def CompileReport(self, where, rows, fullcount):
+        if self.line + 2 + len(rows) >= self.linesPerPage:
+            self.NewPage()
+        # place oaplace bib name    time  gend cl/at cat   bike  agegp  res
+        rowfmt= "%2d.%4s%4d %-21.21s%7.7s %1.1s%2.2s %5.5s %4.4s %5.5s %7.7s\n" 
+        keys = sorted(where.keys())
+        title = " ".join(map(lambda k: "%s:%s" % (k, where[k]), keys))
+        if title == '':
+            title = 'Overall'
+        self.rfd.write("\n%-68.68s(%d of %d)\n" % (title, len(rows), fullcount))
+        self.line += 2 + len(rows)
+        riter = enumerate(rows)
+        try:
+            i, row = next(riter)
+            while True:
+                name = "%s,%s" % (row.lastname, row.firstname)
+                ts = row.totalsecs
+                time = "%d:%02d:%02d" % ((ts/3600)%24, (ts/60)%60, ts%60)
+                self.rfd.write(rowfmt % (i+1, "(%d)" % 0, row.bib, name, time,
+                                         row.gender,
+                                         'AC' if row.ath_clyde != '' else '',
+                                         row.cat, row.bike, row.agegp, 
+                                         row.reside))
+                i, row = next(riter)
+        except StopIteration:
+            pass
+
+    def FinishReport(self):
+        self.rfd.close()
+            
 
 if __name__ == "__main__":
 

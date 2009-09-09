@@ -14,6 +14,20 @@ there.
 
 All TODO
 
+AA DB server connections went away overnight:
+sqlalchemy.exc.OperationalError. THEN, while researching
+timeouts/reconnection, it started working again... Server itself
+seemed to be OK all along, SequelPro worked fine, but my programs ran
+this exception to outer level. Some time later these same instances
+could log OK, so it looks like reconnection happens automatically when
+noticed. Maybe a "Refresh" choice in the menus would be smart, or a
+small query every few minutes or so?
+
+B There's a risk of a race between editor and scanner on saving on
+  sync: namely, editor makes assignment and sprays Notify but scanner
+  does save cycle after editor's assignment but before handling
+  Notify. Same impulse assigned to different scans, for eg.
+
 A Integration with registration: minimal "entries" table: bib, name,
   startkey; starttod; finishtod (latest impulse matched with bib), totaltime
   (difference). Export that and provide a lookup function off bib.

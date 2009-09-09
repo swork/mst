@@ -334,6 +334,7 @@ class MainFrame(wx.Frame):
         menuBar = wx.MenuBar(wx.MB_DOCKABLE)
         fileMenu = wx.Menu()
         fileMenu.Append(wx.ID_SAVE, "&Save and refresh\tCtrl-S", "Commit pending changes")
+        fileMenu.Append(wx.ID_PRINT, "Generate Results", "Create finish report")
 
         editMenu = wx.Menu()
         editMenu.Append(wx.ID_UNDO, "&Undo\tCtrl-Z", "Not yet implemented")
@@ -353,6 +354,7 @@ class MainFrame(wx.Frame):
 
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
         self.Bind(wx.EVT_MENU, self.OnSave, id=wx.ID_SAVE)
+        self.Bind(wx.EVT_MENU, self.OnPrint, id=wx.ID_PRINT)
         self.Bind(wx.EVT_MENU, self.OnQuit, id=wx.ID_EXIT)
 
         self.Show(True)
@@ -365,6 +367,9 @@ class MainFrame(wx.Frame):
     def OnSave(self, evt):
         self.db.session.commit()
         self.control.GetTable().Reload()
+
+    def OnPrint(self, evt):
+        self.db.GenerateResults()
 
     def OnQuit(self, evt):
         dirty = False
