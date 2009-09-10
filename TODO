@@ -14,6 +14,8 @@ there.
 
 All TODO
 
+A Update ERROR and EMPTY flags to bar-code-card values.
+
 AA DB server connections went away overnight:
 sqlalchemy.exc.OperationalError. THEN, while researching
 timeouts/reconnection, it started working again... Server itself
@@ -61,11 +63,22 @@ A [done] BUG Impulser/scanner don't reflect assignments made in editor, implying
 
 Editor TODO
 
+A A little shorter window for Dell Mini
+
+A Can't use "create temporary table finishes" syntax, check
+ExecutionContext/cursor.
+
 A Report places need to handle ties
 
-A Why is Overall missing?
-
 A Overall finish places on all rows
+
+A DNF (NULL) - check OK. (Col in entries, manual set only;
+queries.Actions.CheckFindFinish checks it.)
+
+A Queries: Set Start Times From Groups Table. Set Finish Times From
+Time Differences.  
+
+A ms field in entries; comes straight from impulses, no calcs needed.
 
 A Edit times out-of-band and validate correct sorting etc.
 
@@ -80,6 +93,8 @@ assigned to scans, no scans unassigned, ID multiple impulses
 on one bib (laps), no impulses assigned to earlier scans, impulsetime
 and scantime too far apart to be real, more? 
 
+A Edit in table
+
 C Save, track needs save; not sure SetCellValue works in all (any)
 cases. See editor.py SaveNewValue for eg
 
@@ -92,12 +107,15 @@ C [wontdo] On tableresults retrieve -- Consider interleave via sort after fetch.
 A [done] Honor impulses.erased, add to operations
 B [done] No need to see dates
 A [done] Disallow assigning across "empty corral" marker
+A [done] Why is Overall missing?
 
 
 Impulser TODO
 
 A Explore "RegisterHotKey" as a way to catch every possible impulse
 key when app is running
+
+A A little shorter window for Dell Mini
 
 A ERASE THIS IMPULSE didn't work? Not done?
 
@@ -110,6 +128,8 @@ B [done] Red close button needs to hit confirmation dialog too
 
 
 Scanner TODO
+
+A A little shorter window for Dell Mini
 
 AA Record assignments on EMPTY scan (add scans.impulse to table;
 matches obvious)

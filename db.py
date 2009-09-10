@@ -232,7 +232,7 @@ class QueryGenerator(object):
 
     def GenerateResultCombinations(self):
         selections = self.nextSelections()
-        while selections is not None:
+        while not None is selections:
             if self.IsInZeros(selections) is False:
                 rows,count= self._generateResultCombinations_getRows(selections)
                 if count > 0:
@@ -294,6 +294,7 @@ class Db(object):
         reside = Column(String(7), nullable=True, default=None)
         starttod = Column(mysql.MSDateTime, nullable=True, default=None)
         finishtod = Column(mysql.MSDateTime, nullable=True, default=None)
+        ms = Column(Integer(7), nullable=True, default=None)
         totalsecs = Column(Integer(11), nullable=True, default=None)
 
         def __init__(self, bib, firstname):
@@ -784,7 +785,9 @@ class Db(object):
 
     def FinishReport(self):
         self.rfd.close()
-            
+
+    def RunArbitraryQuery(self, query):
+        return self.engine.execute(query)
 
 if __name__ == "__main__":
 

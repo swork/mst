@@ -5,6 +5,7 @@ import wx.grid
 from db import Db, DatetimeAsTimestring
 import weakref
 import re
+import queries
 
 trace = True
 
@@ -331,9 +332,13 @@ class MainFrame(wx.Frame):
         self.CreateStatusBar()
         self.UpdateStatusBar()
 
+        self.actionsObject = queries.Actions(self.db)
+
         menuBar = wx.MenuBar(wx.MB_DOCKABLE)
         fileMenu = wx.Menu()
         fileMenu.Append(wx.ID_SAVE, "&Save and refresh\tCtrl-S", "Commit pending changes")
+        fileMenu.AppendSubMenu(self.actionsObject.GetActionsMenu(), "Actions",
+                               "Queries that update the database")
         fileMenu.Append(wx.ID_PRINT, "Generate Results", "Create finish report")
 
         editMenu = wx.Menu()
@@ -356,6 +361,8 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnSave, id=wx.ID_SAVE)
         self.Bind(wx.EVT_MENU, self.OnPrint, id=wx.ID_PRINT)
         self.Bind(wx.EVT_MENU, self.OnQuit, id=wx.ID_EXIT)
+        for id in self.actionsObject.GetActionsIds():
+            self.Bind(wx.EVT_MENU, self.actionsObject.OnId, id=id)
 
         self.Show(True)
 
