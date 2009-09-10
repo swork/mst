@@ -61,6 +61,12 @@ A [done] BUG Impulser/scanner don't reflect assignments made in editor, implying
 
 Editor TODO
 
+A Report places need to handle ties
+
+A Why is Overall missing?
+
+A Overall finish places on all rows
+
 A Edit times out-of-band and validate correct sorting etc.
 
 A OK, allow assigning scan to impulse across EMPTY - but confirm.

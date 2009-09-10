@@ -232,7 +232,7 @@ class QueryGenerator(object):
 
     def GenerateResultCombinations(self):
         selections = self.nextSelections()
-        while selections:
+        while selections is not None:
             if self.IsInZeros(selections) is False:
                 rows,count= self._generateResultCombinations_getRows(selections)
                 if count > 0:
@@ -267,7 +267,7 @@ class Db(object):
         __tablename__ = 'groups'
 
         id = Column(Integer(11), primary_key=True)
-        startkey = Column(String(10), nullable=False)
+        startkey = Column(String(40), nullable=False) # same len as entry.cat
         starttod = Column(mysql.MSDateTime, nullable=True, default=None)
 
         def __init__(self, group, starttod):
@@ -742,15 +742,15 @@ class Db(object):
         self.reportTime = datetime.now()
         self.page = 0
         self.line = 0
-        self.linesPerPage = 60
+        self.linesPerPage = 56
         self.rfd = open("./FinishReport.txt", "w")
         self.NewPage()
 
     def NewPage(self):
         if self.page > 0:
-            self.rfd.write("\l")
+            self.rfd.write("\f")
         self.page += 1
-        self.rfd.write("%-19.19s   %-40.40s %10.10s\n\n"
+        self.rfd.write("%-19.19s   %-40.40s %10.10s\n"
                        % (self.reportTime.isoformat(), self.message,
                           "page %d" % self.page))
         self.line = 1
