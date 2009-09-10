@@ -10,6 +10,8 @@ from copy import copy
 import notify
 import os
 
+import mapfinish
+
 trace = False
 Base = declarative_base()
 CONNECTION_SPECIFIER = 'NO_DEFAULT'
@@ -142,11 +144,12 @@ class QueryGeneratorTop(object):
         self.columnNames = columnNames
         self.zeros = {}         # dict of tuple=>1 colval combos
         self.distinctValues = RowProxy([])
+        mapping = mapfinish.MapFinish()
         for k in columnNames:
             sql= ("select distinct %s from %s where %s is not NULL and %s != ''"
                   % (k, table, k, k))
-            listOfTuples = self.db.engine.execute(sql).fetchall()
-            self.distinctValues.append(k, flatten(listOfTuples))
+            listOfTuples = flatten(self.db.engine.execute(sql).fetchall())
+            self.distinctValues.append(k, mapping.Map(k, listOfTuples))
 
     def __repr__(self):
         return ("<QueryGeneratorTop: table:%s columnNames:%s distinctValues:%s"
