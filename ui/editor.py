@@ -2,7 +2,7 @@
 
 import wx
 import wx.grid
-from db import Db, DatetimeAsTimestring
+from db import Db, DatetimeAsTimestring, RESTRICTED_REPORT_LIST
 import weakref
 import re
 import queries
@@ -339,7 +339,17 @@ class MainFrame(wx.Frame):
         fileMenu.Append(wx.ID_SAVE, "&Save and refresh\tCtrl-S", "Commit pending changes")
         fileMenu.AppendSubMenu(self.actionsObject.GetActionsMenu(), "Actions",
                                "Queries that update the database")
-        fileMenu.Append(wx.ID_PRINT, "Generate Results", "Create finish report")
+
+        self.IdReportRestricted = wx.NewId()
+        self.IdReportAllCombos = wx.NewId()
+        self.IdReportOverall = wx.NewId()
+
+        fileMenu.Append(self.IdReportRestricted, "Generate Finish Report",
+                        "Create report for immediate finish results")
+        fileMenu.Append(self.IdReportAllCombos, "Generate Complete Analysis",
+                        "Create long finish analysis report")
+        fileMenu.Append(self.IdReportOverall, "Generate Overall Finish List",
+                        "Create uncategorized, all-finishes report")
 
         editMenu = wx.Menu()
         editMenu.Append(wx.ID_UNDO, "&Undo\tCtrl-Z", "Not yet implemented")
@@ -359,10 +369,12 @@ class MainFrame(wx.Frame):
 
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
         self.Bind(wx.EVT_MENU, self.OnSave, id=wx.ID_SAVE)
-        self.Bind(wx.EVT_MENU, self.OnPrint, id=wx.ID_PRINT)
         self.Bind(wx.EVT_MENU, self.OnQuit, id=wx.ID_EXIT)
         for id in self.actionsObject.GetActionsIds():
             self.Bind(wx.EVT_MENU, self.actionsObject.OnId, id=id)
+        self.Bind(wx.EVT_MENU, self.OnPrint, id=self.IdReportRestricted)
+        self.Bind(wx.EVT_MENU, self.OnPrint, id=self.IdReportAllCombos)
+        self.Bind(wx.EVT_MENU, self.OnPrint, id=self.IdReportOverall)
 
         self.Show(True)
 
@@ -376,7 +388,12 @@ class MainFrame(wx.Frame):
         self.control.GetTable().Reload()
 
     def OnPrint(self, evt):
-        self.db.GenerateResults()
+        if evt.GetId() == self.IdReportRestricted:
+            self.db.GenerateResults(RESTRICTED_REPORT_LIST)
+        elif evt.GetId() == self.IdReportAllCombos:
+            self.db.GenerateResults(())
+        elif evt.GetId() == self.IdReportOverall:
+            self.db.GenerateOverallResults()
 
     def OnQuit(self, evt):
         dirty = False

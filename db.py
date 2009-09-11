@@ -17,6 +17,12 @@ Base = declarative_base()
 CONNECTION_SPECIFIER = 'NO_DEFAULT'
 LOGFILE = 'no/default/at/all'
 REPORT_TITLE = "DEFAULT REPORT TITLE - CHECK .mst.XXX"
+AUTO_ASSIGN_SCANS = False
+ENTRIES_FINISH_CATEGORIES = ('cat','agegp','bike','ath_clyde','gender','reside')
+RESTRICTED_REPORT_LIST = ((), ('cat',), ('cat','agegp'), ('cat','ath_clyde'),
+                          ('cat','reside'), ('reside',), ('cat','bike'),
+                          ('bike',))
+REPORT_CATEGORIES_LIMIT = 15
 
 timere = re.compile(r"(\d+):(\d+):(\d+).?(\d*)")
 def ConvertToDatetime(timeValue):
@@ -58,7 +64,7 @@ class RowProxy(object):
     def __repr__(self):
         return "<Db.RowProxy: %s>" % self.arr.__repr__()
     def __getattr__(self, key):
-        if self.dict.has_key(key):
+        if key in self.dict:
             return self.dict[key]
         return self.getattr(key)
     def __getitem__(self, i):
@@ -74,7 +80,7 @@ class RowProxy(object):
             self.arr[key*2+1] = value
         except TypeError:
             try:
-                if self.dict.has_key(key):
+                if key in self.dict:
                     self.dict[key] = value
                 else:
                     raise AttributeError, key
@@ -147,8 +153,8 @@ class QueryGeneratorTop(object):
         self.distinctValues = RowProxy([])
         mapping = mapfinish.MapFinish()
         for k in columnNames:
-            sql= ("select distinct %s from %s where %s is not NULL and %s != ''"
-                  % (k, table, k, k))
+            sql= ("select distinct %s from %s where %s is not NULL and %s != '' order by %s"
+                  % (k, table, k, k, k))
             listOfTuples = flatten(self.db.engine.execute(sql).fetchall())
             self.distinctValues.append(k, mapping.Map(k, listOfTuples))
 
@@ -208,8 +214,8 @@ class QueryGenerator(object):
 
     def _generateResultCombinations_getRows(self, selections):
         whereClause = self._whereClause(selections)
-        sql = "select * from %s %s order by totalsecs limit 10" \
-            % (self.top.table, whereClause)
+        sql = "select * from %s %s order by totalsecs limit %d" \
+            % (self.top.table, whereClause, REPORT_CATEGORIES_LIMIT)
         rows = self.top.db.engine.execute(sql).fetchall()
         sql = "select count(*) from %s %s" \
             % (self.top.table, whereClause)
@@ -225,7 +231,7 @@ class QueryGenerator(object):
                     tester[k] = selections[k]
                 trykey = tuple(sorted(tester.items()))
                 #print "IsInZeros testing i:%d j:%d got:%s in:%s" % (i, j, trykey, self.top.zeros)
-                if self.top.zeros.has_key(tuple(sorted(tester.items()))):
+                if tuple(sorted(tester.items())) in self.top.zeros:
                     #print "IsInZeros %s got True" % selections
                     return True
         #print "IsInZeros %s got False" % selections
@@ -728,17 +734,57 @@ class Db(object):
     def IsUnsaved(self):
         db.session.dirty()
 
-    def GenerateResults(self):
-        """Get top finishers by all combinations of categories."""
-        all = ('cat','agegp','bike','ath_clyde','gender','reside')
+    def _generateResults_combosToBitmasks(self, all, want_combos):
+        """Make bit masks corresponding to "ord" values in
+        GenerateResults below that represent report category
+        combinations in want_combos.  all is a list of all category
+        names; want_combos is a list of lists of subsets of these
+        categories."""
+        names = {}
+        iter = enumerate(all)
+        try:
+            i, name = next(iter)
+            while True:
+                names[name] = (1 << i)
+                i, name = next(iter)
+        except StopIteration:
+            pass
+        print "combosToBitmasks names:", names
+        results = []
+        for combo in want_combos:
+            mask = 0
+            for name in combo:
+                if name in names:
+                    mask |= names[name]
+            results.append(mask)
+        return results
+
+    def GenerateResults(self, want_combos):
+        """Get top finishers by all combinations of categories. If
+        want_combos is non-None then limit the report to those
+        combinations of categories from ENTRIES_FINISH_CATEGORIES, like
+        ((), ('agegp'), ('agegp','bike')). (The first means Overall.)"""
+
+        all = ENTRIES_FINISH_CATEGORIES
         ord = orderByIncreasingBitCount(len(all))
         qgt = QueryGeneratorTop(self, 'entries', all)
+
+        limit = None
+        if not None is want_combos:
+            restrict = self._generateResults_combosToBitmasks(all, want_combos)
+        print "Restrict report to:", restrict
+
         self.StartReport(REPORT_TITLE)
         for i in ord:
+            if not i in restrict:
+                continue
             qg = QueryGenerator(qgt, i, self.CompileReport)
             qg.GenerateResultCombinations()
         self.ReportDNFs()
         self.FinishReport()
+
+    def GenerateOverallResults(self):
+        pass
 
     def StartReport(self, message):
         self.message = message

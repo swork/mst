@@ -62,7 +62,7 @@ A [done] A little shorter window for Dell Mini
 
 Editor TODO
 
-A Cut report list down to Charlie's list (2 menu choices, 1 for full)
+A Sort report by overall finish place (instead of time), None => 'DNF'
 
 A Report places need to handle ties
 
@@ -103,6 +103,7 @@ A [done] DNF (NULL) - check OK. (Col in entries, manual set only;
 A [done] Queries: Set Start Times From Groups Table. Set Finish Times From
   Time Differences.  
 A [done] ms field in entries; comes straight from impulses, no calcs needed.
+A [done] Cut report list down to Charlie's list (2 menu choices, 1 for full)
 
 
 Impulser TODO
