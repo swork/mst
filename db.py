@@ -255,8 +255,10 @@ class Db(object):
     """Hold the database session info.  Only one instance possible?"""
 
     # Special "bib" numbers
-    FLAG_CORRAL_EMPTY = 999
-    FLAG_ERROR = 998
+    FLAG_CORRAL_EMPTY = 99999
+    FLAG_ERROR = 77777
+    FLAG_START_SYNC = 44444
+    FLAG_STOP_SYNC = 55555
     FLAG_DONT_ASSIGN = 0
 
     def __init__(self, echo):

@@ -14,8 +14,6 @@ there.
 
 All TODO
 
-A Update ERROR and EMPTY flags to bar-code-card values.
-
 B There's a risk of a race between editor and scanner on saving on
   sync: namely, editor makes assignment and sprays Notify but scanner
   does save cycle after editor's assignment but before handling
@@ -25,6 +23,7 @@ C Microseconds field in db should be called 'usecs', not 'ms'
 
 C HD camera on start for bib verification, in case of questions?
 
+A [Done] Update ERROR and EMPTY flags to bar-code-card values.
 A [Done] All times manipulated as naive datetime.datetime values in local TZ,
   and stored as db datetimes with separate ms field.  FULL DATES.
 A [Done] Can't order by impulse.id: DuplicateImpulse screws this up, as it
@@ -62,12 +61,9 @@ A [done] A little shorter window for Dell Mini
 
 Editor TODO
 
-A Report places need to handle ties
-
-A Overall finish places on all rows, must be in DB for categories
-  report. Print as string, 'NT' for None/NULL
-
 A Edit times out-of-band and validate correct sorting etc.
+
+A Edit in table
 
 A OK, allow assigning scan to impulse across EMPTY - but confirm.
 
@@ -79,8 +75,6 @@ B Validations: no impulses.erased assigned to scans, no impulses
 assigned to scans, no scans unassigned, ID multiple impulses
 on one bib (laps), no impulses assigned to earlier scans, impulsetime
 and scantime too far apart to be real, more? 
-
-A Edit in table
 
 C Save, track needs save; not sure SetCellValue works in all (any)
 cases. See editor.py SaveNewValue for eg
@@ -103,6 +97,10 @@ A [done] Queries: Set Start Times From Groups Table. Set Finish Times From
   Time Differences.  
 A [done] ms field in entries; comes straight from impulses, no calcs needed.
 A [done] Cut report list down to Charlie's list (2 menu choices, 1 for full)
+A [done] Report places need to handle ties
+A [done] Overall finish places on all rows, must be in DB for categories
+  report. Print as string, 'NT' for None/NULL
+
 
 
 Impulser TODO
