@@ -9,6 +9,7 @@ import types, re
 from copy import copy
 import notify
 import os
+from queries import PlaceCounter
 
 import mapfinish
 
@@ -209,8 +210,8 @@ class QueryGenerator(object):
         if len(keys):
             items = " and ".join(map(lambda k: "%s = '%s'" % (k, selections[k]),
                                      keys))
-            return "where %s" % items
-        return ""
+            return "where dnf is NULL and totalsecs is not NULL and %s" % items
+        return "where dnf is NULL and totalsecs is not NULL"
 
     def _generateResultCombinations_getRows(self, selections):
         whereClause = self._whereClause(selections)
@@ -304,6 +305,7 @@ class Db(object):
         ms = Column(Integer(7), nullable=True, default=None)
         totalsecs = Column(Integer(11), nullable=True, default=None)
         dnf = Column(Integer(1), nullable=True, default=None)
+        place = Column(Integer(11), nullable=True, default=None)
 
         def __init__(self, bib, firstname):
             self.bib = bib
@@ -781,6 +783,7 @@ class Db(object):
             qg = QueryGenerator(qgt, i, self.CompileReport)
             qg.GenerateResultCombinations()
         self.ReportDNFs()
+        self.ReportMissings()
         self.FinishReport()
 
     def GenerateOverallResults(self, filename):
@@ -824,12 +827,17 @@ class Db(object):
         rows = self.engine.execute(sql).fetchall()
         return self.CompileReport({}, rows, -1)
 
+    def ReportMissings(self):
+        sql = "select * from entries where dnf is NULL and totalsecs is NULL"
+        rows = self.engine.execute(sql).fetchall()
+        return self.CompileReport({}, rows, -2)
+
     def CompileReport(self, where, rows, fullcount):
         if (self.line + 2 + len(rows) >= self.linesPerPage
             and not (self.line == 1 and len(rows) > self.linesPerPage)):
             self.NewPage()
         # place oaplace bib name    time  gend cl/at cat   bike  agegp  res
-        rowfmt= "%2d.%4s%4d %-21.21s%7.7s %1.1s%2.2s %5.5s %4.4s %5.5s %7.7s\n" 
+        rowfmt= "%2d.%5s%4d %-21.21s%7.7s %1.1s%2.2s %5.5s %4.4s %5.5s %7.7s\n" 
         keys = sorted(where.keys())
         title = " ".join(map(lambda k: "%s:%s" % (k, where[k]), keys))
         if title == '':
@@ -837,11 +845,15 @@ class Db(object):
         if fullcount == -1:
             title = "Did Not Finish"
             self.rfd.write("\n%-68.68s(%d)\n" % (title, len(rows)))
+        elif fullcount == -2:
+            title = "Missing"
+            self.rfd.write("\n%-68.68s(%d)\n" % (title, len(rows)))
         else:
             self.rfd.write("\n%-68.68s(%d of %d)\n" % (title, len(rows),
                                                        fullcount))
         self.line += 2 + len(rows)
         riter = enumerate(rows)
+        placing = PlaceCounter()
         try:
             i, row = next(riter)
             while True:
@@ -853,8 +865,9 @@ class Db(object):
                     time = " DNF "
                 else:
                     time = "missing"
-                self.rfd.write(rowfmt % (i+1, "(%d)" % 0, row.bib, name, time,
-                                         row.gender,
+                oa = "(%d)" % row.place if not None is row.place else "NF "
+                self.rfd.write(rowfmt % (placing.Next(time), oa, row.bib, name,
+                                         time, row.gender,
                                          'AC' if row.ath_clyde != '' else '',
                                          row.cat, row.bike, row.agegp, 
                                          row.reside))

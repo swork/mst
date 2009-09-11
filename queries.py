@@ -1,6 +1,26 @@
 import wx
 import sqlalchemy
 
+class PlaceCounter(object):
+    def __init__(self):
+        self.previousValue = None
+        self.nextPlace = 0
+        self.step = 1
+        self.done1 = False
+
+    def Next(self, value):
+        tie = (value == self.previousValue and self.done1)
+        self.done1 = True
+        if tie:
+            place = self.nextPlace
+            self.step += 1
+        else:
+            self.previousValue = value
+            self.nextPlace += self.step
+            place = self.nextPlace
+            self.step = 1
+        return place
+
 class Actions(object):
     def __init__(self, dbobject):
         """Index, Menu name, query, rows in result if not None (generally 0)"""
@@ -45,6 +65,19 @@ class Actions(object):
               'validate': self.CheckFindFinishes
               },
                      
+            { 'id': wx.NewId(), 
+              'title': u'Establish Overall Placing',
+              'desc': """
+    First clear finish place values from table 'entries' for all
+             competitors. The for each competitor in table 'entries,'
+             find the totalsecs value and assign finish place. Ties result
+             in same place assigned to all tying competitors, with 
+             the intervening places unassigned (eg. tie for 3rd means
+             placing sequence is 1, 2, 3, 3, 5, ...)
+             """,
+              'procedure': self.DoOverallPlacing,
+              'validate': self.CheckOverallPlacing
+              },
          )
         self.byId = dict(map(lambda x: (x['id'], x), self.all))
         self.menu = None        # lazy load
@@ -124,7 +157,8 @@ class Actions(object):
         engine = self.db.engine
 
         sql_wipe_finishes = """
-            update entries set finishtod = NULL, ms = NULL, totalsecs = NULL"""
+            update entries
+            set finishtod = NULL, ms = NULL, totalsecs = NULL, place = NULL"""
         result = engine.execute(sql_wipe_finishes)
 
         sql_get_finishes = """
@@ -185,3 +219,59 @@ class Actions(object):
             msg += "All entries now have finish time assigned.\nOK.\n"
         print msg
 
+    def DoOverallPlacing(self):
+        """Assign overall places by finish time."""
+        engine = self.db.engine
+
+        sql_wipe_places = """
+            update entries set place = NULL"""
+        result = engine.execute(sql_wipe_places)
+
+        sql_get_times = """
+            select id, totalsecs from entries
+            where totalsecs is not NULL
+            order by totalsecs, ms"""
+        rows = engine.execute(sql_get_times).fetchall()
+
+        iter = enumerate(rows)
+        try:
+            sql_update = "update entries set place = %d where id = %d"
+            place = PlaceCounter()
+            i, row = next(iter)
+            while True:
+                engine.execute(sql_update % (place.Next(row.totalsecs), row.id))
+                i, row = next(iter)
+        except StopIteration:
+            pass
+
+    def CheckOverallPlacing(self):
+        """Validate the results of the Establish Overall Placing query"""
+        msg = ''
+
+        sql_total = "select count(*) from entries where totalsecs is not NULL"
+        total_count = self.db.engine.execute(sql_total).scalar()
+        msg += "We have %d finish times in the database.\n" % total_count
+
+        msg += "First we cleared all finish places.\n"
+
+        msg += "Then we set overall places from finish times.\n"
+
+        sql_missing = """
+                select id, bib, lastname, firstname, cat
+                from entries where totalsecs is not NULL and place is NULL"""
+        rows = self.db.engine.execute(sql_missing).fetchall()
+
+        if len(rows) > 10:
+            msg += ("Now %d entries have no place, too many to list.\n"
+                    % len(rows))
+            msg += "RESULT NOT SUCCESSFUL.\n"
+        elif len(rows) > 0:
+            msg += "%d entries have no place, RESULT NOT SUCCESSFUL:\n\n"\
+                % len(rows)
+            for row in rows:
+                    msg += ("%5d %4d %-10.10s %-10.10s %10.10s\n"
+                            % (row.id, row.bib, row.lastname, row.firstname, 
+                               row.startkey))
+        else:
+            msg += "All finishes now have finish place assigned.\nOK.\n"
+        print msg
