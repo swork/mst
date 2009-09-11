@@ -57,12 +57,10 @@ AA [reconnects OK] DB server connections went away overnight:
 A [done] Integration with registration: minimal "entries" table: bib, name,
   startkey; starttod; finishtod (latest impulse matched with bib), totaltime
   (difference). Export that and provide a lookup function off bib.
-
+A [done] A little shorter window for Dell Mini
  
 
 Editor TODO
-
-A A little shorter window for Dell Mini
 
 A Cut report list down to Charlie's list (2 menu choices, 1 for full)
 
@@ -109,8 +107,6 @@ A [done] ms field in entries; comes straight from impulses, no calcs needed.
 
 Impulser TODO
 
-A A little shorter window for Dell Mini
-
 A ERASE THIS IMPULSE didn't work? Not done?  (Eliminate it?)
 
 C Explore "RegisterHotKey" as a way to catch every possible impulse
@@ -125,8 +121,6 @@ B [done] Red close button needs to hit confirmation dialog too
 
 
 Scanner TODO
-
-A A little shorter window for Dell Mini
 
 A Config option to turn off automatic assignment on empty corral
 

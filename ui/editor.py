@@ -325,7 +325,7 @@ class MatchupGrid(wx.grid.Grid):
 class MainFrame(wx.Frame):
     ID_EASY = 43
     def __init__(self, parent, id, title, db):
-        wx.Frame.__init__(self, parent, id, title, size=(299,600))
+        wx.Frame.__init__(self, parent, id, title, size=(299,500))
         self.db = db
         self.control = MatchupGrid(self, 2, db)
 
