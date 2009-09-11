@@ -16,6 +16,7 @@ trace = False
 Base = declarative_base()
 CONNECTION_SPECIFIER = 'NO_DEFAULT'
 LOGFILE = 'no/default/at/all'
+REPORT_TITLE = "DEFAULT REPORT TITLE - CHECK .mst.XXX"
 
 timere = re.compile(r"(\d+):(\d+):(\d+).?(\d*)")
 def ConvertToDatetime(timeValue):
@@ -296,6 +297,7 @@ class Db(object):
         finishtod = Column(mysql.MSDateTime, nullable=True, default=None)
         ms = Column(Integer(7), nullable=True, default=None)
         totalsecs = Column(Integer(11), nullable=True, default=None)
+        dnf = Column(Integer(1), nullable=True, default=None)
 
         def __init__(self, bib, firstname):
             self.bib = bib
@@ -731,11 +733,11 @@ class Db(object):
         all = ('cat','agegp','bike','ath_clyde','gender','reside')
         ord = orderByIncreasingBitCount(len(all))
         qgt = QueryGeneratorTop(self, 'entries', all)
-        self.StartReport("FAKE DATA, DEV ONLY, IGNORE OR DIE")
+        self.StartReport(REPORT_TITLE)
         for i in ord:
             qg = QueryGenerator(qgt, i, self.CompileReport)
-            #print qg
             qg.GenerateResultCombinations()
+        self.ReportDNFs()
         self.FinishReport()
 
     def StartReport(self, message):
@@ -756,6 +758,11 @@ class Db(object):
                           "page %d" % self.page))
         self.line = 1
 
+    def ReportDNFs(self):
+        sql = "select * from entries where dnf is not NULL"
+        rows = self.engine.execute(sql).fetchall()
+        return self.CompileReport({}, rows, -1)
+
     def CompileReport(self, where, rows, fullcount):
         if self.line + 2 + len(rows) >= self.linesPerPage:
             self.NewPage()
@@ -765,15 +772,25 @@ class Db(object):
         title = " ".join(map(lambda k: "%s:%s" % (k, where[k]), keys))
         if title == '':
             title = 'Overall'
-        self.rfd.write("\n%-68.68s(%d of %d)\n" % (title, len(rows), fullcount))
+        if fullcount == -1:
+            title = "Did Not Finish"
+            self.rfd.write("\n%-68.68s(%d)\n" % (title, len(rows)))
+        else:
+            self.rfd.write("\n%-68.68s(%d of %d)\n" % (title, len(rows),
+                                                       fullcount))
         self.line += 2 + len(rows)
         riter = enumerate(rows)
         try:
             i, row = next(riter)
             while True:
                 name = "%s,%s" % (row.lastname, row.firstname)
-                ts = row.totalsecs
-                time = "%d:%02d:%02d" % ((ts/3600)%24, (ts/60)%60, ts%60)
+                if not None is row.totalsecs and row.dnf is None:
+                    ts = row.totalsecs
+                    time = "%d:%02d:%02d" % ((ts/3600)%24, (ts/60)%60, ts%60)
+                elif not None is row.dnf:
+                    time = " DNF "
+                else:
+                    time = "missing"
                 self.rfd.write(rowfmt % (i+1, "(%d)" % 0, row.bib, name, time,
                                          row.gender,
                                          'AC' if row.ath_clyde != '' else '',

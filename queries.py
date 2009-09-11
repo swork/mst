@@ -76,7 +76,7 @@ class Actions(object):
             for row in rows:
                     msg += ("%5d %4d %-10.10s %-10.10s %10.10s\n"
                             % (row.id, row.bib, row.lastname, row.firstname, 
-                               row.startkey))
+                               row.cat))
         else:
             msg += "All entries now have starttod assigned. OK.\n"
         print msg
@@ -157,9 +157,9 @@ class Actions(object):
         """Validate the results of the Set Finish Times query"""
         msg = ''
 
-        sql_total = "select count(*) from entries"
+        sql_total = "select count(*) from entries where dnf is NULL"
         total_count = self.db.engine.execute(sql_total).scalar()
-        msg += "We have %d entries in the database. " % total_count
+        msg += "We have %d non-DNF entries in the database. " % total_count
 
         msg += "First we cleared all finish times. "
 
@@ -167,8 +167,7 @@ class Actions(object):
 
         sql_missing = """
                 select id, bib, lastname, firstname, cat
-                from entries where totalsecs is NULL"""
-# dnf is NULL and (
+                from entries where dnf is NULL and totalsecs is NULL"""
         rows = self.db.engine.execute(sql_missing).fetchall()
 
         if len(rows) > 10:
@@ -183,6 +182,6 @@ class Actions(object):
                             % (row.id, row.bib, row.lastname, row.firstname, 
                                row.startkey))
         else:
-            msg += "All entries now have finish time assigned. OK.\n"
+            msg += "All entries now have finish time assigned.\nOK.\n"
         print msg
 
