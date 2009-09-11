@@ -62,11 +62,10 @@ A [done] A little shorter window for Dell Mini
 
 Editor TODO
 
-A Sort report by overall finish place (instead of time), None => 'DNF'
-
 A Report places need to handle ties
 
-A Overall finish places on all rows
+A Overall finish places on all rows, must be in DB for categories
+  report. Print as string, 'NT' for None/NULL
 
 A Edit times out-of-band and validate correct sorting etc.
 

@@ -388,12 +388,13 @@ class MainFrame(wx.Frame):
         self.control.GetTable().Reload()
 
     def OnPrint(self, evt):
+        filename = "./FinishReport.txt"
         if evt.GetId() == self.IdReportRestricted:
-            self.db.GenerateResults(RESTRICTED_REPORT_LIST)
+            self.db.GenerateResults(RESTRICTED_REPORT_LIST, filename)
         elif evt.GetId() == self.IdReportAllCombos:
-            self.db.GenerateResults(())
+            self.db.GenerateResults((), filename)
         elif evt.GetId() == self.IdReportOverall:
-            self.db.GenerateOverallResults()
+            self.db.GenerateOverallResults(filename)
 
     def OnQuit(self, evt):
         dirty = False

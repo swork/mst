@@ -759,7 +759,7 @@ class Db(object):
             results.append(mask)
         return results
 
-    def GenerateResults(self, want_combos):
+    def GenerateResults(self, want_combos, filename):
         """Get top finishers by all combinations of categories. If
         want_combos is non-None then limit the report to those
         combinations of categories from ENTRIES_FINISH_CATEGORIES, like
@@ -774,7 +774,7 @@ class Db(object):
             restrict = self._generateResults_combosToBitmasks(all, want_combos)
         print "Restrict report to:", restrict
 
-        self.StartReport(REPORT_TITLE)
+        self.StartReport(REPORT_TITLE, filename)
         for i in ord:
             if not i in restrict:
                 continue
@@ -783,16 +783,31 @@ class Db(object):
         self.ReportDNFs()
         self.FinishReport()
 
-    def GenerateOverallResults(self):
+    def GenerateOverallResults(self, filename):
+        self.StartReport(REPORT_TITLE, filename)
+        sql = """select * from entries 
+                 where totalsecs is not NULL and dnf is NULL
+                 order by totalsecs asc, ms asc"""
+        rows = self.engine.execute(sql).fetchall()
+        sql_dnf = """select * from entries 
+                 where totalsecs is NULL and dnf is not NULL
+                 order by bib asc"""
+        rows.extend(self.engine.execute(sql_dnf).fetchall())
+        sql_missing = """select * from entries 
+                 where totalsecs is NULL and dnf is NULL
+                 order by bib asc"""
+        rows.extend(self.engine.execute(sql_missing).fetchall())
+        self.CompileReport({}, rows, len(rows))
+        self.FinishReport()
         pass
 
-    def StartReport(self, message):
+    def StartReport(self, message, filename):
         self.message = message
         self.reportTime = datetime.now()
         self.page = 0
         self.line = 0
         self.linesPerPage = 56
-        self.rfd = open("./FinishReport.txt", "w")
+        self.rfd = open(filename, "w")
         self.NewPage()
 
     def NewPage(self):
@@ -810,7 +825,8 @@ class Db(object):
         return self.CompileReport({}, rows, -1)
 
     def CompileReport(self, where, rows, fullcount):
-        if self.line + 2 + len(rows) >= self.linesPerPage:
+        if (self.line + 2 + len(rows) >= self.linesPerPage
+            and not (self.line == 1 and len(rows) > self.linesPerPage)):
             self.NewPage()
         # place oaplace bib name    time  gend cl/at cat   bike  agegp  res
         rowfmt= "%2d.%4s%4d %-21.21s%7.7s %1.1s%2.2s %5.5s %4.4s %5.5s %7.7s\n" 
