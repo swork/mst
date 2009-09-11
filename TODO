@@ -16,25 +16,12 @@ All TODO
 
 A Update ERROR and EMPTY flags to bar-code-card values.
 
-AA DB server connections went away overnight:
-sqlalchemy.exc.OperationalError. THEN, while researching
-timeouts/reconnection, it started working again... Server itself
-seemed to be OK all along, SequelPro worked fine, but my programs ran
-this exception to outer level. Some time later these same instances
-could log OK, so it looks like reconnection happens automatically when
-noticed. Maybe a "Refresh" choice in the menus would be smart, or a
-small query every few minutes or so?
-
 B There's a risk of a race between editor and scanner on saving on
   sync: namely, editor makes assignment and sprays Notify but scanner
   does save cycle after editor's assignment but before handling
   Notify. Same impulse assigned to different scans, for eg.
 
-A Integration with registration: minimal "entries" table: bib, name,
-  startkey; starttod; finishtod (latest impulse matched with bib), totaltime
-  (difference). Export that and provide a lookup function off bib.
-
-B Microseconds field in db should be called 'usecs', not 'ms'
+C Microseconds field in db should be called 'usecs', not 'ms'
 
 C HD camera on start for bib verification, in case of questions?
 
@@ -59,23 +46,29 @@ A [done] Option mechanism - command line or env vars (config file)
 A [done] BUG Impulser/scanner don't reflect assignments made in editor, implying
   WORSE BUG 999 scan may trash assignments made in editor. Resolved by
   removing already-assigned scans and impulses from this display.
+AA [reconnects OK] DB server connections went away overnight:
+  sqlalchemy.exc.OperationalError. THEN, while researching
+  timeouts/reconnection, it started working again... Server itself
+  seemed to be OK all along, SequelPro worked fine, but my programs ran
+  this exception to outer level. Some time later these same instances
+  could log OK, so it looks like reconnection happens automatically when
+  noticed. Maybe a "Refresh" choice in the menus would be smart, or a
+  small query every few minutes or so?
+A [done] Integration with registration: minimal "entries" table: bib, name,
+  startkey; starttod; finishtod (latest impulse matched with bib), totaltime
+  (difference). Export that and provide a lookup function off bib.
+
  
 
 Editor TODO
 
 A A little shorter window for Dell Mini
 
+A Cut report list down to Charlie's list (2 menu choices, 1 for full)
+
 A Report places need to handle ties
 
 A Overall finish places on all rows
-
-A DNF (NULL) - check OK. (Col in entries, manual set only;
-queries.Actions.CheckFindFinish checks it.)
-
-A Queries: Set Start Times From Groups Table. Set Finish Times From
-Time Differences.  
-
-A ms field in entries; comes straight from impulses, no calcs needed.
 
 A Edit times out-of-band and validate correct sorting etc.
 
@@ -107,16 +100,21 @@ A [done] Disallow assigning across "empty corral" marker
 A [done] Why is Overall missing?
 A [wontdo] Can't use "create temporary table finishes" syntax, check
   ExecutionContext/cursor.
+A [done] DNF (NULL) - check OK. (Col in entries, manual set only;
+  queries.Actions.CheckFindFinish checks it.)
+A [done] Queries: Set Start Times From Groups Table. Set Finish Times From
+  Time Differences.  
+A [done] ms field in entries; comes straight from impulses, no calcs needed.
 
 
 Impulser TODO
 
-A Explore "RegisterHotKey" as a way to catch every possible impulse
-key when app is running
-
 A A little shorter window for Dell Mini
 
-A ERASE THIS IMPULSE didn't work? Not done?
+A ERASE THIS IMPULSE didn't work? Not done?  (Eliminate it?)
+
+C Explore "RegisterHotKey" as a way to catch every possible impulse
+  key when app is running
 
 A [done] impulses.erased column, click on row to set it (and disappear row)
 B [done] No need to see dates
@@ -130,14 +128,13 @@ Scanner TODO
 
 A A little shorter window for Dell Mini
 
-AA Record assignments on EMPTY scan (add scans.impulse to table;
-matches obvious)
+A Config option to turn off automatic assignment on empty corral
 
 B Refresh in menu (debug, too likely we'll want it in production)
 
-B Delete key on bib number to kill it
+B Delete key on bib number to kill it (???)
 
-B Keystrokes in grid go to text field
+B Keystrokes in grid go to text field (???)
 
 C Explore "RegisterHotKey" as a way to catch every possible bibscan
 key when app is running
@@ -152,4 +149,7 @@ B [done] Include scan time in tables
 A [done] BC notify on change
 AA [done] Don't assign anything (unassign) if error flag scanned
 AA [done] Assign new bibs to EARLIEST impulse since empty, not latest
+AA [done] Record assignments on EMPTY scan (add scans.impulse to table;
+   matches obvious)
+
 
