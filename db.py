@@ -771,14 +771,14 @@ class Db(object):
         ord = orderByIncreasingBitCount(len(all))
         qgt = QueryGeneratorTop(self, 'entries', all)
 
-        limit = None
+        restrict = None
         if not None is want_combos:
             restrict = self._generateResults_combosToBitmasks(all, want_combos)
         print "Restrict report to:", restrict
 
         self.StartReport(REPORT_TITLE, filename)
         for i in ord:
-            if not i in restrict:
+            if len(restrict) > 0 and not i in restrict:
                 continue
             qg = QueryGenerator(qgt, i, self.CompileReport)
             qg.GenerateResultCombinations()
