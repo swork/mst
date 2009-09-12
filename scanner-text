@@ -4,22 +4,21 @@ import MySQLdb
 import sys
 import re
 from datetime import datetime
-import notify
+import notify_send
 import os.path
 
-DBHOST = '127.0.0.1'
+DBHOST = '10.1.1.203'
 DBUSER = 'anonymous'
 DBNAME = 'test'
+LOGFILE = '~/scanner-text-%d.log'
+notify_send.INADDR_BC = '<broadcast>'
 
+print "host:",DBHOST,"user",DBUSER,"db",DBNAME
 db = MySQLdb.connect(host=DBHOST, user=DBUSER, db=DBNAME)
+
 cursor = db.cursor()
 digits = re.compile('^\d+\n?$')
-notifier = notify.Say()
-
-CONFIGURATION = 'scanner-text'
-LOGFILE = '~/scanner-text-%d.log'
-
-execfile(os.path.expanduser("~/.mst.%s" % CONFIGURATION))
+notifier = notify_send.Say()
 
 sql = "insert into scans (bib, scantime) values (%s, '%s')"
 
