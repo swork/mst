@@ -6,6 +6,7 @@ from ui.impulser import MainFrame
 import db
 import os.path
 import notify                   # so we can configure it
+import serialtimer              # same
 
 CONFIGURATION = "production"
 

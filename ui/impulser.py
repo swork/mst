@@ -4,6 +4,7 @@ import wx
 import wx.grid
 from ui.activitytable import ActivityTable
 import notify
+import serialtimer
 
 trace = True
 
@@ -117,6 +118,9 @@ class MainFrame(wx.Frame):
         self.hearer = notify.Hear(self)
         self.Bind(notify.EVT_UPDATE_INFO, self.OnHeardNotify)
 
+        self.serialtimer = serialtimer.RelayImpulses(self)
+        self.Bind(serialtimer.EVT_SERIAL_IMPULSES, self.OnHeardSerialImpulse)
+
         self.Show(True)
         reportButton.SetFocus()
 
@@ -127,6 +131,10 @@ class MainFrame(wx.Frame):
         self.db.RecordImpulse()
         self.click_counter += 1
         self.SetStatusText("Click %d" % self.click_counter)
+        self.Refresh()
+
+    def OnHeardSerialImpulse(self, evt):
+        self.db.RecordImpulses(evt.times)
         self.Refresh()
 
     def Refresh(self):

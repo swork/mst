@@ -7,7 +7,7 @@ import re
 
 SERIAL_PORT = '/dev/tty.usbserial'
 
-(SerialImpulseEvent, EVT_SERIAL_IMPULSE) = wx.lib.newevent.NewEvent()
+(SerialImpulseEvent, EVT_SERIAL_IMPULSES) = wx.lib.newevent.NewEvent()
 
 def nocr(str):
     return re.sub("\x0D","!",str)
@@ -23,7 +23,7 @@ class RelayImpulses(object):
 
     def RelayThread(self):
         saved = ''
-        msg_re = re.compile('T.{12,13}? (\d+:\d+:\d+\.\d+)\x0D')
+        msg_re = re.compile('T.{12,13}? (\d+):(\d+):(\d+)\.(\d+)\x0D')
         sync_re = re.compile('\x0D')
         times = []
         while self.keepGoing:
@@ -49,8 +49,11 @@ class RelayImpulses(object):
                             print "Tossing entire buffer: ", nocr(saved)
                             saved = ''
                         else:
-                            time = saved[match.start(1):match.end(1)]
-                            times.append((time,))
+                            hour = saved[match.start(1):match.end(1)]
+                            minute = saved[match.start(2):match.end(2)]
+                            second = saved[match.start(3):match.end(3)]
+                            microseconds = saved[match.start(4):match.end(4)]
+                            times.append((hour,minute,second,microseconds))
                             saved = saved[match.end(0):]
             else:
                 match = sync_re.search(saved)

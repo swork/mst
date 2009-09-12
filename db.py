@@ -513,6 +513,22 @@ class Db(object):
         self.WriteLog(sql)
         self.notifier.NotifyAll()
 
+    def RecordImpulses(self, times):
+        tuples = []
+        for t in times:
+            print t
+            impulseTime = datetime.now().replace(hour=int(t[0]),
+                                                 minute=int(t[1]),
+                                                 second=int(t[2]),
+                                                 microsecond=int(t[3]))
+            tuples.append((impulseTime.isoformat(), impulseTime.microsecond))
+        sql = "insert into impulses (impulsetime, ms) values ('%s', %d)"
+        for t in tuples:
+            formatted = sql % t
+            self.engine.execute(formatted)
+            self.WriteLog(formatted)
+        self.notifier.NotifyAll()
+
     def RecordBib(self, bib):
         if trace: print "recordbib:%d" % bib
         scantime = datetime.now()

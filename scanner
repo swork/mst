@@ -5,6 +5,7 @@ import wx
 from ui.scanner import MainFrame
 import db
 import notify                   # so we can configure it, below
+import serialtimer              # same
 import os.path
 
 CONFIGURATION = "production"
