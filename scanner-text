@@ -1,0 +1,41 @@
+#! /usr/bin/env python
+
+import MySQLdb
+import sys
+import re
+from datetime import datetime
+import notify
+import os.path
+
+DBHOST = '127.0.0.1'
+DBUSER = 'anonymous'
+DBNAME = 'test'
+
+db = MySQLdb.connect(host=DBHOST, user=DBUSER, db=DBNAME)
+cursor = db.cursor()
+digits = re.compile('^\d+\n?$')
+notifier = notify.Say()
+
+CONFIGURATION = 'scanner-text'
+LOGFILE = '~/scanner-text-%d.log'
+
+execfile(os.path.expanduser("~/.mst.%s" % CONFIGURATION))
+
+sql = "insert into scans (bib, scantime) values (%s, '%s')"
+
+def WriteLog(sql_command):
+    fname = os.path.expanduser(LOGFILE % os.getpid())
+    open(fname, 'a').write("%s;\n" % sql_command)
+
+while True:
+    line = sys.stdin.readline()
+    if digits.match(line):
+        formatted = sql % (line, datetime.now().isoformat())
+        cursor.execute(formatted)
+        WriteLog(formatted)
+        print "Recorded"
+        notifier.NotifyAll()
+    else:
+        print "Non-digit input ignored"
+
+
