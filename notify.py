@@ -46,17 +46,23 @@ class Hear(object):
 
 class Say(object):
     def __init__(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        opt = self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        print "notifier sending Awake!"
-        self.sock.sendto("Awake!", 0, (INADDR_BC, HEAR_PORT))
-        address = self.sock.getsockname()
-        Said.SAY_PORT = address[1] # late binding!
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            opt = self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            print "notifier sending Awake!"
+            self.sock.sendto("Awake!", 0, (INADDR_BC, HEAR_PORT))
+            address = self.sock.getsockname()
+            Said.SAY_PORT = address[1] # late binding!
+        except:
+            pass
 
     def NotifyAll(self):
         """Spray a notice."""
         print "notifier sending Update!"
-        self.sock.sendto("Update!", 0, (INADDR_BC, HEAR_PORT))
+        try:
+            self.sock.sendto("Update!", 0, (INADDR_BC, HEAR_PORT))
+        except:
+            print "Some error, ignored (but no notify sent)"
 
 if __name__ == '__main__':
     import time

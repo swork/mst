@@ -138,13 +138,26 @@ class MatchupTable(wx.grid.PyGridTableBase):
 
     def AssociateScanWithImpulseByRows(self, top, bot):
         """Mark a finish impulse as belonging to a particular bib."""
-        result = self.db.AssignImpulseToScanByIndices(self.data, top, bot)
+        result = self.db.AssignImpulseToScanByIndices(self.data, top, bot,
+                                                      self.doubleCheckDialog)
         if result:
             self.bibscanUnmatchedCount -= 1
             self.ResetView()
         else:
             alert()
         return result
+
+    # doesn't work, disabled
+    def doubleCheckDialog(self):
+        dlg = wx.MessageDialog(self.GetGrid().parent,
+                               u"Are you sure?"
+                               u"Weird assignment", wx.OK | wx.CANCEL)
+        rc = dlg.ShowModal()
+        dlg.Destroy()
+        if rc == wx.ID_CANCEL:
+            return False
+        return True
+
 
     def DisassociateScanFromImpulse(self, row):
         """Unmark a finish impulse from a bib"""

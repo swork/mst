@@ -649,7 +649,7 @@ class Db(object):
                     si = -1
         return (result, impulse_count, bibscan_count, unmatchedscan_count)
 
-    def AssignImpulseToScanByRecordIDs(self, impulseid, scanid):
+    def AssignImpulseToScanByRecordIDs(self, impulseid, scanid, checkFn):
         """Glue a scan to an impulse in the database."""
 
         irow = self.engine.execute("select * from impulses where id = %d"
@@ -658,17 +658,19 @@ class Db(object):
                                    % scanid).fetchone()
 
         # Don't assign across a time when the corral was empty.
-        itime = irow.impulsetime.replace(microsecond=irow.ms)
-        stime = srow.scantime
-        empties = self.engine.execute("""
+        if False and checkFn:   # doesn't work, disabled
+            itime = irow.impulsetime.replace(microsecond=irow.ms)
+            stime = srow.scantime
+            empties = self.engine.execute("""
             select bib 
             from scans 
             where bib = %d
               and scans.scantime > '%s'
               and scans.scantime < '%s'""" % (Db.FLAG_CORRAL_EMPTY,
                                               itime, stime)).fetchall()
-        if len(empties) > 0:
-            return False
+            if len(empties) > 0:
+                if checkFn() != True:
+                    return False
 
 #         set = { 'impulse': impulseid }
 #         self.session.query(Db.Scan).filter("id = %s" % scanid).update(set)
@@ -682,7 +684,8 @@ class Db(object):
         self.notifier.NotifyAll()
         return True
 
-    def AssignImpulseToScanByIndices(self, tableresults, impulserow, scanrow):
+    def AssignImpulseToScanByIndices(self, tableresults, impulserow, scanrow, 
+                                     checkFn):
         """tableresults is result from GetMatchTable above.  Try to
         assign a scan to an impulse; if it works, adjust tableresults
         to match."""
@@ -714,7 +717,8 @@ class Db(object):
         impulseid = tableresults[impulserow]['impulseid']
         scanid = tableresults[scanrow]['scanid']
 
-        result = self.AssignImpulseToScanByRecordIDs(impulseid, scanid)
+        result = self.AssignImpulseToScanByRecordIDs(impulseid, scanid,
+                                                     checkFn)
         if result:
             tableresults[impulserow]['bib'] = bib
             tableresults[impulserow]['scantime']= tableresults[scanrow].scantime
@@ -851,9 +855,9 @@ class Db(object):
         return self.CompileReport({}, rows, -2)
 
     def CompileReport(self, where, rows, fullcount):
-        if (self.line + 2 + len(rows) >= self.linesPerPage
-            and not (self.line == 1 and len(rows) > self.linesPerPage)):
-            self.NewPage()
+#        if (self.line + 2 + len(rows) >= self.linesPerPage
+#            and not (self.line == 1 and len(rows) > self.linesPerPage)):
+#            self.NewPage()
         # place oaplace bib name    time  gend cl/at cat   bike  agegp  res
         rowfmt= "%2d.%5s%4d %-21.21s%7.7s %1.1s%2.2s %5.5s %4.4s %5.5s %7.7s\n" 
         keys = sorted(where.keys())
