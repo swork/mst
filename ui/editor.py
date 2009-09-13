@@ -415,7 +415,7 @@ class MainFrame(wx.Frame):
         gridwidth = self.control.GetColumnWidthsSum()
         print gridwidth
         framesize = self.GetClientSize()
-        newsize = (gridwidth + 15, framesize[1]) # scroll bar width
+        newsize = (gridwidth + 50, framesize[1]) # scroll bar width
         print "newsize: ", newsize
         self.SetClientSize(newsize)
         size = self.GetSize()

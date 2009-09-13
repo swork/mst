@@ -120,6 +120,8 @@ B [done] Red close button needs to hit confirmation dialog too
 
 Scanner TODO
 
+A Include full calc of elapsed time in display if possible.
+
 A Config option to turn off automatic assignment on empty corral
 
 B Refresh in menu (debug, too likely we'll want it in production)

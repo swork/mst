@@ -886,7 +886,7 @@ class Db(object):
                 oa = "(%d)" % row.place if not None is row.place else "NF "
                 self.rfd.write(rowfmt % (placing.Next(time), oa, row.bib, name,
                                          time, row.gender,
-                                         'AC' if row.ath_clyde != '' else '',
+                                         'AC' if not None is row.ath_clyde and row.ath_clyde != '' else '',
                                          row.cat, row.bike, row.agegp, 
                                          row.reside))
                 i, row = next(riter)
