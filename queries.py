@@ -271,7 +271,7 @@ class Actions(object):
             for row in rows:
                     msg += ("%5d %4d %-10.10s %-10.10s %10.10s\n"
                             % (row.id, row.bib, row.lastname, row.firstname, 
-                               row.startkey))
+                               row.cat))
         else:
             msg += "All finishes now have finish place assigned.\nOK.\n"
         print msg
