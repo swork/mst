@@ -44,7 +44,7 @@ def ConvertToDatetime(timeValue):
     raise "TimeValueConvert got input type %s, can't figure it out..." % t
 
 def DatetimeAsTimestring(dt):
-    return dt.strftime("%H:%M:%S.%f")
+    return dt.strftime("%H:%M:%S") + (".%06d" % dt.microsecond)
 
 def IsFlagValue(bibnumber):
     if bibnumber is None:
